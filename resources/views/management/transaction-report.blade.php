@@ -53,10 +53,10 @@
                                             <label class="sa-chart-toolbar__item-label">Order Status</label>
                                             <select name="order_status" class="form-select form-select-sm">
                                                 <option value="">All</option>
-                                                <option value="1" {{ request('order_status')=='1'?'selected':'' }}>Delivered</option>
-                                                <option value="2" {{ request('order_status')=='2'?'selected':'' }}>Payment Pending</option>
-                                                <option value="3" {{ request('order_status')=='3'?'selected':'' }}>Order Placed</option>
-                                                <option value="0" {{ request('order_status')=='0'?'selected':'' }}>Cancelled</option>
+                                                <option value="1" {{ request('order_status')=='1'?'selected':'' }}>{{ \App\Enums\OrderStatus::label(1) }}</option>
+                                                <option value="2" {{ request('order_status')=='2'?'selected':'' }}>{{ \App\Enums\OrderStatus::label(2) }}</option>
+                                                <option value="3" {{ request('order_status')=='3'?'selected':'' }}>{{ \App\Enums\OrderStatus::label(3) }}</option>
+                                                <option value="0" {{ request('order_status')=='0'?'selected':'' }}>{{ \App\Enums\OrderStatus::label(0) }}</option>
                                             </select>
                                         </div>
                                         
@@ -134,15 +134,8 @@
                                         <td>{{ number_format($order->order_sub_total_amt, 2) }}</td>
                                         <td>{{ number_format($order->order_charges_total_amt, 2) }}</td>
                                         @php
-                                            $orderStatusMap = [
-                                                1 => ['Delivered',        'success'],
-                                                2 => ['Order Placed',  'warning'],
-                                                3 => ['Order Confirmed',     'primary'],
-                                                0 => ['Cancelled',        'danger'],
-                                            ];
-                                        
-                                            [$orderLabel, $orderBadge] = $orderStatusMap[$order->order_status]
-                                                ?? ['Unknown', 'secondary'];
+                                            $orderLabel = \App\Enums\OrderStatus::label($order->order_status);
+                                            $orderBadge = \App\Enums\OrderStatus::badge($order->order_status);
                                         @endphp
                                         
                                         <td>

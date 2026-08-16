@@ -23,6 +23,19 @@ class ProductController extends Controller
         if ($request->tag) {
             $query->where('p_tag', $request->tag);
         }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('p_name', 'like', "%{$search}%")
+                    ->orWhere('p_tag', 'like', "%{$search}%")
+                    ->orWhere('p_short_desc', 'like', "%{$search}%")
+                    ->orWhere('p_full_desc', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($q2) use ($search) {
+                        $q2->where('cat_name', 'like', "%{$search}%");
+                    });
+            });
+        }
         
         /* 🔥 EXECUTE QUERY ONLY ONCE */
         $products = $query->get()->map(function ($product) use ($baseUrl) {

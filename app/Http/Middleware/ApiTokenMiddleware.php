@@ -17,9 +17,10 @@ class ApiTokenMiddleware
     public function handle(Request $request, Closure $next)
     {
         $token = $request->header('Authorization');
-        $appToken = env('APP_API_TOKEN');
-        
-        if (!$token || $token !== $appToken) {
+        $appToken = config('api.token');
+
+        // Fail closed: without a configured token every API request is rejected.
+        if ($appToken === '' || $appToken === null || !$token || !hash_equals($appToken, $token)) {
             return response()->json([
                 'status' => false,
                 'message' => 'Unauthorized access',

@@ -179,16 +179,9 @@
                                                         <td><a href="{{ route('management.order.details', $order->order_id) }}">#{{ $order->order_id }}</a></td>
                                                         <td>{{ date('d/m/Y h:i A', strtotime($order->order_date_time)) }}</td>
                                                         @php
-                                                            $statusMap = [
-                                                                1 => ['label' => 'Delivered',        'badge' => 'success'],
-                                                                2 => ['label' => 'Payment Pending',  'badge' => 'warning'],
-                                                                3 => ['label' => 'Order Placed',     'badge' => 'primary'],
-                                                                0 => ['label' => 'Cancelled',        'badge' => 'danger'],
-                                                            ];
-                                                        
-                                                            $status = $statusMap[$order->order_status] ?? [
-                                                                'label' => 'Unknown',
-                                                                'badge' => 'secondary'
+                                                            $status = [
+                                                                'label' => \App\Enums\OrderStatus::label($order->order_status),
+                                                                'badge' => \App\Enums\OrderStatus::badge($order->order_status),
                                                             ];
                                                         @endphp
                                                         

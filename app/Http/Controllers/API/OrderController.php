@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Cart;
 use App\Models\ProductInventory;
+use App\Enums\OrderStatus;
 use Illuminate\Support\Facades\DB;
 
 
@@ -66,16 +67,16 @@ class OrderController extends Controller
             $order = Order::create([
                 'order_placed_cust_id'   => $customer->cust_id,
                 'order_items_qty'        => $request->order_items_qty,
-                'order_items'            => json_encode($request->order_items),
-                'order_delivery_details' => json_encode($request->delivery_details),
-                'order_charges'          => json_encode($request->order_charges),
+                'order_items'            => $request->order_items,
+                'order_delivery_details' => $request->delivery_details,
+                'order_charges'          => $request->order_charges,
                 'order_total_amt'        => $request->order_total_amt,
                 'order_paid_amt'         => 0,
                 'order_due_amt'          => $request->order_total_amt,
                 'order_payment_mode'     => $request->order_payment_mode,
                 'order_date_time'        => now(),
                 'order_payment_status'   => 0,
-                'order_status'           => 2,
+                'order_status'           => OrderStatus::PENDING,
                 'order_created_at'       => now(),
             ]);
     
@@ -131,7 +132,11 @@ class OrderController extends Controller
 
     public function confirmOrder(Request $request)
     {
-        $order = Order::where('order_id', $request->order_id)->first();
+        $customer = $request->auth_customer;
+
+        $order = Order::where('order_id', $request->order_id)
+            ->where('order_placed_cust_id', $customer->cust_id)
+            ->first();
 
         if (!$order) {
             return response()->json([
@@ -140,39 +145,38 @@ class OrderController extends Controller
             ], 404);
         }
 
-        // Update order payment details
-        $order->order_payment_id = $request->payment_id;
-        $order->order_paid_amt = $order->order_total_amt;
-        $order->order_due_amt = 0;
-        $order->order_payment_status = 1;
-        $order->order_payment_date_time = now();
-        $order->order_status = 3; // Payment Completed
-        $order->order_updated_at = now();
-        $order->save();
+        // A cancelled order can never be confirmed.
+        if ((int) $order->order_status === OrderStatus::CANCELLED) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Cancelled orders cannot be confirmed'
+            ], 409);
+        }
 
-        // Deduct stock for each product in the order
-        $orderItems = json_decode($order->order_items, true); // order_items is JSON
+        // Idempotent: an already-confirmed order is returned as-is.
+        if ((int) $order->order_status !== OrderStatus::CONFIRMED) {
+            // Update order payment details
+            $order->order_payment_id = $request->payment_id;
+            $order->order_paid_amt = $order->order_total_amt;
+            $order->order_due_amt = 0;
+            $order->order_payment_status = 1;
+            $order->order_payment_date_time = now();
+            $order->order_status = OrderStatus::CONFIRMED;
+            $order->order_updated_at = now();
+            $order->save();
 
-        foreach ($orderItems as $item) {
-            $inventory = ProductInventory::where('product_id', $item['product_id'])
-                            ->where('packet_size', $item['packet_size'])
-                            ->where('product_unit', $item['product_unit'])
-                            ->first();
-
-            if ($inventory) {
-                $inventory->p_stock_qty = max(0, $inventory->p_stock_qty - $item['product_qty']);
-                $inventory->save();
-            }
+            // Stock was already deducted at order placement, so it must NOT
+            // be deducted again here (previous code deducted twice).
         }
 
         // Clear customer's cart
         Cart::where('cust_id', $order->order_placed_cust_id)
             ->where('cart_status', 1)
             ->delete();
-        
-        $order->order_items = json_decode($order->order_items, true); // order_items is JSON
-        $order->order_delivery_details = json_decode($order->order_delivery_details, true); // order_items is JSON
-        $order->order_charges = json_decode($order->order_charges, true); // order_items is JSON
+
+        $order->order_items = $order->order_items; // order_items is JSON
+        $order->order_delivery_details = $order->order_delivery_details; // order_items is JSON
+        $order->order_charges = $order->order_charges; // order_items is JSON
 
 
         return response()->json([
@@ -264,12 +268,55 @@ class OrderController extends Controller
 
     public function updateOrder(Request $request)
     {
-        $order = Order::where('order_id', $request->order_id)->first();
+        $customer = $request->auth_customer;
 
-        $order->order_status = $request->order_status;
+        $order = Order::where('order_id', $request->order_id)
+            ->where('order_placed_cust_id', $customer->cust_id)
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+
+        // Customers may only cancel their own PENDING/CONFIRMED orders.
+        $newStatus = (int) $request->order_status;
+
+        if ($newStatus !== OrderStatus::CANCELLED) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Only order cancellation is allowed'
+            ], 422);
+        }
+
+        $currentStatus = (int) $order->order_status;
+
+        if (!in_array($currentStatus, [OrderStatus::PENDING, OrderStatus::CONFIRMED], true)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'This order can no longer be cancelled'
+            ], 409);
+        }
+
+        $order->order_status = OrderStatus::CANCELLED;
         $order->order_updated_at = now();
         $order->save();
-        
+
+        // Restore stock deducted at order placement.
+        foreach ($order->order_items as $item) {
+            $inventory = ProductInventory::where('product_id', $item['product_id'])
+                            ->where('packet_size', $item['packet_size'] ?? null)
+                            ->where('product_unit', $item['product_unit'] ?? null)
+                            ->first();
+
+            if ($inventory) {
+                $inventory->p_stock_qty += (int) ($item['product_qty'] ?? 1);
+                $inventory->save();
+            }
+        }
+
         $order->order_items = $order->order_items; // order_items is JSON
         $order->order_delivery_details = $order->order_delivery_details; // order_items is JSON
         $order->order_charges = $order->order_charges; // order_items is JSON

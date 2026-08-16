@@ -260,11 +260,12 @@
                             $otherCharges = [];
                             if(is_array($charges)) {
                                 foreach($charges as $charge) {
+                                    $chargeId = strtolower($charge['charge_id'] ?? '');
                                     $chargeName = strtolower($charge['charge_name'] ?? '');
                                     $amount = (float)($charge['calculated_amount'] ?? 0);
-                                    if($chargeName === 'cgst') {
+                                    if($chargeId === 'cgst' || $chargeName === 'cgst') {
                                         $cgstAmount = $amount;
-                                    } elseif($chargeName === 'sgst') {
+                                    } elseif($chargeId === 'sgst' || $chargeName === 'sgst') {
                                         $sgstAmount = $amount;
                                     } else {
                                         $otherCharges[] = $charge;

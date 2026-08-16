@@ -34,15 +34,7 @@
             <td>{{ date('d/m/Y h:i A', strtotime($order->order_date_time)) }}</td>
             <td>{{ number_format($order->order_total_amt, 2) }}</td>
             <td>{{ $order->order_payment_status == 1 ? 'Paid' : 'Pending' }}</td>
-            <td>
-                {{ match($order->order_status) {
-                    1 => 'Delivered',
-                    2 => 'Payment Pending',
-                    3 => 'Order Placed',
-                    0 => 'Cancelled',
-                    default => 'Unknown'
-                } }}
-            </td>
+            <td>{{ \App\Enums\OrderStatus::label($order->order_status) }}</td>
             <td>{{ $order->order_payment_id }} ({{ $order->order_payment_mode == 1 ? 'COD' : 'Online' }})</td>
         </tr>
         @endforeach

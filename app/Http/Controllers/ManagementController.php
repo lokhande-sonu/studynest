@@ -17,8 +17,8 @@ class ManagementController extends Controller
          * ======================= */
         $totalOrders = Order::count();
 
-        // Status 2 is 'Order Placed' (Pending)
-        $pendingOrders = Order::where('order_status', 2)->count();
+        // Pending orders awaiting confirmation
+        $pendingOrders = Order::where('order_status', \App\Enums\OrderStatus::PENDING)->count();
 
         $totalCustomers = Customer::where('cust_status', 1)->count();
 

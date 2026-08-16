@@ -10,7 +10,10 @@ class CustomerAuth
     public function handle(Request $request, Closure $next)
     {
         // Validate app header token again for safety
-        if ($request->header('Authorization') !== env('APP_API_TOKEN')) {
+        $appToken = config('api.token');
+
+        // Fail closed: without a configured token every API request is rejected.
+        if ($appToken === '' || $appToken === null || $request->header('Authorization') !== $appToken) {
             return response()->json([
                 'status' => false,
                 'message' => 'Invalid App Token'

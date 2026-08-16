@@ -59,15 +59,8 @@
                                             ?? ['Unknown', 'secondary'];
                                     
                                         // Order status
-                                        $orderStatusMap = [
-                                            1 => ['Delivered',        'success'],
-                                            2 => ['Order Placed',  'warning'],
-                                            3 => ['Order Confirmed',     'primary'],
-                                            0 => ['Cancelled',        'danger'],
-                                        ];
-                                    
-                                        [$orderLabel, $orderBadge] = $orderStatusMap[$order->order_status]
-                                            ?? ['Unknown', 'secondary'];
+                                        $orderLabel = \App\Enums\OrderStatus::label($order->order_status);
+                                        $orderBadge = \App\Enums\OrderStatus::badge($order->order_status);
                                     @endphp
                                     
                                     <div class="sa-page-meta__item d-flex align-items-center fs-6">
@@ -344,10 +337,10 @@
                                 <div class="mb-3">
                                     <label class="form-label">Order Status</label>
                                     <select class="form-select" name="order_status">
-                                        <option value="2" {{ $order->order_status == '2' ? 'selected' : '' }}>Order Placed</option>
-                                        <option value="3" {{ $order->order_status == '3' ? 'selected' : '' }}>Order Confirmed</option>
-                                        <option value="1" {{ $order->order_status == '1' ? 'selected' : '' }}>Delivered</option>
-                                        <option value="0" {{ $order->order_status == '0' ? 'selected' : '' }}>Cancelled</option>
+                                        <option value="1" {{ $order->order_status == '1' ? 'selected' : '' }}>{{ \App\Enums\OrderStatus::label(1) }}</option>
+                                        <option value="2" {{ $order->order_status == '2' ? 'selected' : '' }}>{{ \App\Enums\OrderStatus::label(2) }}</option>
+                                        <option value="3" {{ $order->order_status == '3' ? 'selected' : '' }}>{{ \App\Enums\OrderStatus::label(3) }}</option>
+                                        <option value="0" {{ $order->order_status == '0' ? 'selected' : '' }}>{{ \App\Enums\OrderStatus::label(0) }}</option>
                                     </select>
                                 </div>
                             </div>

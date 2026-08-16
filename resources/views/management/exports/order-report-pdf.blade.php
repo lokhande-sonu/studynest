@@ -30,7 +30,7 @@
             <td>{{ date('d/m/Y h:i A', strtotime($order->order_date_time)) }}</td>
             <td>{{ number_format($order->order_total_amt,2) }}</td>
             <td>{{ $order->order_payment_status == 1 ? 'Paid' : 'Pending' }}</td>
-            <td>{{ $order->order_status == 1 ? 'Delivered' : 'Other' }}</td>
+            <td>{{ \App\Enums\OrderStatus::label($order->order_status) }}</td>
         </tr>
         @endforeach
     </tbody>

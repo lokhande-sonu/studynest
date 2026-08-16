@@ -190,46 +190,46 @@ class OrderController extends Controller
     {
         $order = Order::findOrFail($id);
 
-        // Add validation and update logic based on what can be updated (e.g. status)
         $request->validate([
-            'order_status' => 'required|string',
+            'order_status' => 'required|integer',
         ]);
 
-        $order->update([
-            'order_status' => $request->order_status,
-            'order_updated_at' => now(),
-        ]);
-        
+        $newStatus = (int) $request->order_status;
+
+        if (!$this->allowedStatusTransition($order->order_status, $newStatus)) {
+            return redirect()->back()->with('error', 'Invalid order status transition from "' . OrderStatus::label($order->order_status) . '" to "' . OrderStatus::label($newStatus) . '".');
+        }
+
+        $this->applyStatus($order, $newStatus);
+
         $statusText = $this->orderStatusLabel($order->order_status);
-            
-            $delivery = $order->order_delivery_details;
 
-            try {
-                Mail::to($delivery['email'] ?? null)
-                    ->send(new OrderStatusUpdateMail(
-                        $order,
-                        $statusText,
-                        now()->format('d M Y h:i A')
-                    ));
-            } catch (\Exception $e) {
-                Log::error('Order Status Update Email Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            }
-            
-            // WhatsApp & SMS Notification to Customer
-            try {
-                if ($delivery['phone'] ?? null) {
-                    NotificationHelper::notify('order_status_update', [
-                        'mobile' => $delivery['phone'],
-                        'name' => ($delivery['first_name'] ?? 'Customer') . ' ' . ($delivery['last_name'] ?? ''),
-                        'order_id' => $order->order_id,
-                        'status' => $statusText
-                    ]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Order Status Update Notification Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            }
+        $delivery = $order->order_delivery_details;
 
-        // If updating payment status or other fields, add logic here
+        try {
+            Mail::to($delivery['email'] ?? null)
+                ->send(new OrderStatusUpdateMail(
+                    $order,
+                    $statusText,
+                    now()->format('d M Y h:i A')
+                ));
+        } catch (\Exception $e) {
+            Log::error('Order Status Update Email Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        }
+
+        // WhatsApp & SMS Notification to Customer
+        try {
+            if ($delivery['phone'] ?? null) {
+                NotificationHelper::notify('order_status_update', [
+                    'mobile' => $delivery['phone'],
+                    'name' => ($delivery['first_name'] ?? 'Customer') . ' ' . ($delivery['last_name'] ?? ''),
+                    'order_id' => $order->order_id,
+                    'status' => $statusText
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Order Status Update Notification Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        }
 
         return redirect()->back()->with('success', 'Order updated successfully.');
     }
@@ -242,27 +242,13 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         if ($request->has('status')) {
-            $oldStatus = $order->order_status;
-            $order->order_status = $request->status;
-            $order->order_updated_at = now();
-            $order->save();
+            $newStatus = (int) $request->status;
 
-            // Restore stock if order is being cancelled
-            if ($request->status == \App\Enums\OrderStatus::CANCELLED && $oldStatus != \App\Enums\OrderStatus::CANCELLED) {
-                foreach ($order->order_items as $item) {
-                    $stockQuery = \App\Models\ProductStockInventory::where('prod_id', $item['product_id']);
-                    if (!empty($item['variant_id'])) {
-                        $stockQuery->where('prod_variant_id', $item['variant_id']);
-                    } else {
-                        $stockQuery->whereNull('prod_variant_id');
-                    }
-                    $stock = $stockQuery->first();
-
-                    if ($stock) {
-                        $stock->increment('available_stock', $item['product_qty']);
-                    }
-                }
+            if (!$this->allowedStatusTransition($order->order_status, $newStatus)) {
+                return redirect()->back()->with('error', 'Invalid order status transition from "' . OrderStatus::label($order->order_status) . '" to "' . OrderStatus::label($newStatus) . '".');
             }
+
+            $this->applyStatus($order, $newStatus);
 
             $statusText = $this->orderStatusLabel($order->order_status);
 
@@ -293,20 +279,72 @@ class OrderController extends Controller
                 Log::error('Order Status Update Notification Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             }
 
-
             return redirect()->back()->with('success', 'Order status updated successfully.');
         }
-        
+
         // Payment status update if needed
         if ($request->has('payment_status')) {
-             $order->order_payment_status = $request->payment_status;
-             $order->order_updated_at = now();
-             $order->save();
-             return redirect()->back()->with('success', 'Payment status updated successfully.');
+            $order->order_payment_status = (int) $request->payment_status;
+            if ($order->order_payment_status == 1) {
+                $order->order_paid_amt = $order->order_total_amt;
+                $order->order_due_amt = 0;
+                $order->order_payment_date_time = now();
+            }
+            $order->order_updated_at = now();
+            $order->save();
+            return redirect()->back()->with('success', 'Payment status updated successfully.');
         }
-        
 
         return redirect()->back()->with('error', 'Status not provided.');
+    }
+
+    /**
+     * Whether a management-side status transition is allowed.
+     */
+    private function allowedStatusTransition($from, $to): bool
+    {
+        $from = (int) $from;
+        $to = (int) $to;
+
+        if ($from === $to) {
+            return true;
+        }
+
+        $transitions = [
+            OrderStatus::PENDING   => [OrderStatus::CONFIRMED, OrderStatus::CANCELLED],
+            OrderStatus::CONFIRMED => [OrderStatus::DELIVERED, OrderStatus::CANCELLED],
+            OrderStatus::DELIVERED => [],
+            OrderStatus::CANCELLED => [],
+        ];
+
+        return in_array($to, $transitions[$from] ?? [], true);
+    }
+
+    /**
+     * Persist a new status and keep stock in sync (restore on cancel).
+     */
+    private function applyStatus(Order $order, int $newStatus): void
+    {
+        $oldStatus = (int) $order->order_status;
+
+        if ($newStatus === OrderStatus::CANCELLED && $oldStatus !== OrderStatus::CANCELLED) {
+            $this->restoreOrderStock($order);
+        }
+
+        $order->order_status = $newStatus;
+        $order->order_updated_at = now();
+        $order->save();
+    }
+
+    private function restoreOrderStock(Order $order): void
+    {
+        foreach ($order->order_items as $item) {
+            $stock = \App\Services\CartService::stockFor((int) $item['product_id'], $item['variant_id'] ?? null);
+
+            if ($stock) {
+                $stock->increment('available_stock', (int) ($item['product_qty'] ?? 1));
+            }
+        }
     }
     
     /**
@@ -468,13 +506,7 @@ class OrderController extends Controller
                 date('d/m/Y h:i A', strtotime($order->order_date_time)),
                 $order->order_total_amt,
                 $order->order_payment_status == 1 ? 'Paid' : 'Pending',
-                match ($order->order_status) {
-                    1 => 'Delivered',
-                    2 => 'Payment Pending',
-                    3 => 'Order Placed',
-                    0 => 'Cancelled',
-                    default => 'Unknown'
-                },
+                \App\Enums\OrderStatus::label($order->order_status),
                 $order->order_payment_id . ' via ' .
                 ($order->order_payment_mode == 1 ? 'COD' : 'Online')
             ], null, 'A' . $row);

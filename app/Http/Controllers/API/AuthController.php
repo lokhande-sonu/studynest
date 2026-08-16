@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Customer;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
-    // Validate user - check mobile exists and send OTP (mock otp)
+    // Validate user - check mobile exists and send OTP
     public function validateUser(Request $request)
     {
         $validator = \Validator::make($request->all(), [
@@ -26,18 +27,36 @@ class AuthController extends Controller
     
         $customer = Customer::where('cust_mobile', $request->mobile)->first();
     
-        // Mock OTP
-        $otp = 1234;
+        // Generate a fresh 6-digit OTP and store it (10-minute expiry).
+        // The OTP is validated in userLogin() against this stored value, so
+        // generation and validation always stay consistent.
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put('api_otp_' . $request->mobile, $otp, now()->addMinutes(10));
+
+        // Deliver the OTP out-of-band. In production the OTP must never be
+        // exposed in the API response; it is sent via SMS/WhatsApp instead.
+        if (app()->environment('production')) {
+            \App\Helpers\NotificationHelper::sendSMS(
+                $request->mobile,
+                "Your StudyNest login OTP is {$otp}. Valid for 10 minutes."
+            );
+        }
+
+        // The OTP is only returned in non-production environments (development
+        // and testing). In production it is never exposed in the API response.
+        $responseData = [
+            'user_exists' => $customer ? 1 : 0,
+        ];
+        if (!app()->environment('production')) {
+            $responseData['otp'] = $otp;
+        }
     
         return response()->json([
             'status' => true,
             'message' => $customer 
                 ? 'User exists. OTP sent.'
                 : 'New user. OTP sent.',
-            'data' => [
-                'user_exists' => $customer ? 1 : 0,
-                'otp' => $otp
-            ]
+            'data' => $responseData
         ]);
     }
     
@@ -104,24 +123,36 @@ class AuthController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-    
-        // OTP always 1234 (mock)
-        if ($request->otp_check != 1) {
-            return response()->json([
-                'status' => false,
-                'message' => 'OTP verification failed',
-            ]);
-        }
-    
+
         $customer = Customer::where('cust_mobile', $request->mobile)->first();
-    
+
         if (!$customer) {
             return response()->json([
                 'status' => false,
                 'message' => 'User not found',
             ]);
         }
-    
+
+        // Verify OTP against the value stored by validateUser().
+        $storedOtp = Cache::get('api_otp_' . $request->mobile);
+
+        if ($storedOtp === null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'OTP expired. Please request a new one.',
+            ]);
+        }
+
+        if (!hash_equals((string) $storedOtp, (string) $request->otp_check)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'OTP verification failed',
+            ]);
+        }
+
+        // OTP used - invalidate so it cannot be replayed.
+        Cache::forget('api_otp_' . $request->mobile);
+
         $token = bin2hex(random_bytes(30));
     
         $customer->update([
