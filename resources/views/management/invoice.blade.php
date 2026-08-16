@@ -218,7 +218,7 @@
                         </td>
                         <td class="text-center">{{ $item['product_qty'] ?? 1 }}</td>
                         <td class="text-right">₹{{ number_format($item['product_rate'] ?? 0, 2) }}</td>
-                        <td class="text-right">₹{{ number_format($item['price'] ?? ($item['product_total'] ?? 0), 2) }}</td>
+                        <td class="text-right">₹{{ number_format($item['total_price'] ?? ($item['price'] * ($item['product_qty'] ?? 1)), 2) }}</td>
                     </tr>
                     @endforeach
                 @endif

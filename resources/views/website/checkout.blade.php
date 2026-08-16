@@ -120,46 +120,48 @@
                                     <span class="text-gray-900 font-heading-two">Subtotal</span>
                                 </div>
                                 
-                                @php 
-                                    $cartItems = \App\Models\CartItem::where('cust_id', auth()->id())->with(['product', 'variant'])->get();
-                                    $subtotal = 0;
-                                @endphp
-
                                 @foreach($cartItems as $item)
-                                    @php 
-                                        $price = $item->variant ? ($item->variant->discounted_unit_price ?? $item->variant->unit_price) : ($item->product->discounted_price ?? $item->product->p_price);
-                                        
-                                        // Check for session-based customization surcharge
-                                        $metaKey = $item->product_id . '|' . ($item->variant_id ?: 'none');
-                                        $customMeta = session('cart_customizations', []);
-                                        $surcharge = isset($customMeta[$metaKey]) ? (float) ($customMeta[$metaKey]['price'] ?? 0) : 0;
-                                        $itemPrice = $price + $surcharge;
-                                        
-                                        $subtotal += $itemPrice * $item->quantity;
-                                    @endphp
                                     <div class="mb-16 flex-between gap-8">
-                                        <span class="text-gray-500 text-sm">{{ $item->product->p_name }} x {{ $item->quantity }}</span>
-                                        <span class="text-gray-900 fw-semibold text-sm">₹{{ number_format($itemPrice * $item->quantity, 2) }}</span>
+                                        <span class="text-gray-500 text-sm">
+                                            {{ $item->product->p_name }}
+                                            @if($item->variant)
+                                                ({{ $item->variant->prod_variant }})
+                                            @endif
+                                            x {{ $item->quantity }}
+                                        </span>
+                                        <span class="text-gray-900 fw-semibold text-sm">₹{{ number_format($item->line_total, 2) }}</span>
                                     </div>
                                 @endforeach
 
                                 <div class="border-top border-gray-100 my-24"></div>
                                 <div class="mb-32 flex-between gap-8">
-                                    <span class="text-gray-900 font-heading-two">Subtotal</span>
-                                    <span class="text-gray-900 fw-semibold">₹{{ number_format($subtotal, 2) }}</span>
+                                    <span class="text-gray-900 font-heading-two">Subtotal (incl. GST)</span>
+                                    <span class="text-gray-900 fw-semibold">₹{{ number_format($subTotal, 2) }}</span>
                                 </div>
-                                
-                                @php 
-                                    $deliveryCharge = \App\Models\Charge::first()->delivery_charge ?? 0;
-                                @endphp
-                                <div class="mb-32 flex-between gap-8">
-                                    <span class="text-gray-900 font-heading-two">Delivery Charge</span>
-                                    <span class="text-gray-900 fw-semibold">₹{{ number_format($deliveryCharge, 2) }}</span>
-                                </div>
+
+                                @foreach($calculatedCharges as $charge)
+                                    @if(!empty($charge->charge_name))
+                                        <div class="mb-16 flex-between gap-8">
+                                            <span class="text-gray-500 text-sm">
+                                                {{ $charge->charge_name }}
+                                                @if($charge->gst_rate > 0)
+                                                    (incl. {{ number_format($charge->gst_rate, 0) }}% GST)
+                                                @endif
+                                            </span>
+                                            <span class="text-gray-900 fw-semibold text-sm">
+                                                @if(isset($charge->applied) && !$charge->applied)
+                                                    Free
+                                                @else
+                                                    ₹{{ number_format($charge->calculated_amount, 2) }}
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endforeach
                                 <div class="border-top border-gray-100 my-24"></div>
                                 <div class="flex-between gap-8">
                                     <span class="text-gray-900 font-heading-two text-lg fw-bold">Total</span>
-                                    <span class="text-gray-900 fw-bold text-lg">₹{{ number_format($subtotal + $deliveryCharge, 2) }}</span>
+                                    <span class="text-gray-900 fw-bold text-lg">₹{{ number_format($grandTotal, 2) }}</span>
                                 </div>
                             </div>
 
@@ -183,7 +185,7 @@
                     ],
                     content_type: 'product',
                     num_items: {{ $cartItems->sum('quantity') }},
-                    value: {{ $subtotal + $deliveryCharge }},
+                    value: {{ $grandTotal }},
                     currency: 'INR'
                 });
             }

@@ -32,6 +32,8 @@ use App\Helpers\NotificationHelper;
 use App\Helpers\PayUHelper;
 use App\Enums\OrderStatus;
 use App\Enums\OrderPaymentMode;
+use App\Services\CartService;
+use App\Services\PricingService;
 
 
 class WebsiteController extends Controller
@@ -144,7 +146,11 @@ class WebsiteController extends Controller
                 $q->where('is_all_classes', 1)
                     ->orWhereHas('classes', function ($q2) use ($classId) {
                         $q2->where('tbl_classes.class_id', $classId);
-                    });
+                    })
+                    // Products with no class link at all are treated as
+                    // available for every class (prevents orphaned products
+                    // from disappearing from filtered listings).
+                    ->orWhereDoesntHave('classes');
             });
         }
 
@@ -167,8 +173,16 @@ class WebsiteController extends Controller
         }
 
         if ($request->has('search') && $request->search != null) {
-            $search = $request->search;
-            $query->where('p_name', 'like', "%{$search}%");
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('p_name', 'like', "%{$search}%")
+                    ->orWhere('p_tag', 'like', "%{$search}%")
+                    ->orWhere('p_short_desc', 'like', "%{$search}%")
+                    ->orWhere('p_full_desc', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($q2) use ($search) {
+                        $q2->where('cat_name', 'like', "%{$search}%");
+                    });
+            });
         }
 
         if ($request->has('sort_by') && in_array($request->sort_by, ['price_low_high', 'price_high_low'])) {
@@ -228,7 +242,11 @@ class WebsiteController extends Controller
                 $q->where('is_all_classes', 1)
                     ->orWhereHas('classes', function ($q2) use ($classId) {
                         $q2->where('tbl_classes.class_id', $classId);
-                    });
+                    })
+                    // Products with no class link at all are treated as
+                    // available for every class (prevents orphaned products
+                    // from disappearing from filtered listings).
+                    ->orWhereDoesntHave('classes');
             });
         }
 
@@ -251,8 +269,16 @@ class WebsiteController extends Controller
         }
 
         if ($request->has('search') && $request->search != null) {
-            $search = $request->search;
-            $query->where('p_name', 'like', "%{$search}%");
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('p_name', 'like', "%{$search}%")
+                    ->orWhere('p_tag', 'like', "%{$search}%")
+                    ->orWhere('p_short_desc', 'like', "%{$search}%")
+                    ->orWhere('p_full_desc', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($q2) use ($search) {
+                        $q2->where('cat_name', 'like', "%{$search}%");
+                    });
+            });
         }
 
         if ($request->has('sort_by') && in_array($request->sort_by, ['price_low_high', 'price_high_low'])) {
@@ -351,9 +377,21 @@ class WebsiteController extends Controller
                 ->select('p_id', 'is_all_classes', 'p_cat_id')
                 ->get();
 
-            $productClassIds = DB::table('tbl_product_classes')
+            // If any product for this school serves ALL classes, or none of
+            // the school's products have explicit class links, every active
+            // class is a valid option.
+            $linkedClassCount = DB::table('tbl_product_classes')
                 ->whereIn('product_id', $productsForSchool->pluck('p_id'))
-                ->pluck('class_id');
+                ->count();
+
+            $servesAllClasses = $productsForSchool->contains('is_all_classes', 1)
+                || $linkedClassCount === 0;
+
+            $productClassIds = $servesAllClasses
+                ? Classes::where('class_status', 1)->pluck('class_id')
+                : DB::table('tbl_product_classes')
+                    ->whereIn('product_id', $productsForSchool->pluck('p_id'))
+                    ->pluck('class_id');
 
             $bundleClassIds = DB::table('tbl_bundle_classes')
                 ->whereIn('bundle_id', $bundles->pluck('b_id'))
@@ -501,13 +539,7 @@ class WebsiteController extends Controller
             }
 
             // Check Stock
-            $stockQuery = ProductStockInventory::where('prod_id', $id);
-            if ($variantId) {
-                $stockQuery->where('prod_variant_id', $variantId);
-            } else {
-                $stockQuery->whereNull('prod_variant_id');
-            }
-            $stock = $stockQuery->first();
+            $stock = CartService::stockFor($id, $variantId);
             $availableStock = $stock ? $stock->available_stock : 0;
 
             if ($availableStock <= 0) {
@@ -622,13 +654,7 @@ class WebsiteController extends Controller
         }
 
         // Check Stock
-        $stockQuery = ProductStockInventory::where('prod_id', $id);
-        if ($variantId) {
-            $stockQuery->where('prod_variant_id', $variantId);
-        } else {
-            $stockQuery->whereNull('prod_variant_id');
-        }
-        $stock = $stockQuery->first();
+        $stock = CartService::stockFor($id, $variantId);
         $availableStock = $stock ? $stock->available_stock : 0;
 
         if ($availableStock <= 0) {
@@ -704,17 +730,7 @@ class WebsiteController extends Controller
                 ->first();
 
             if ($cartItem) {
-                // Check stock
-                $productId = $cartItem->product_id;
-                $variantId = $cartItem->variant_id;
-
-                $stockQuery = ProductStockInventory::where('prod_id', $productId);
-                if ($variantId) {
-                    $stockQuery->where('prod_variant_id', $variantId);
-                } else {
-                    $stockQuery->whereNull('prod_variant_id');
-                }
-                $stock = $stockQuery->first();
+                $stock = CartService::stockFor($cartItem->product_id, $cartItem->variant_id);
                 $maxStock = $stock ? (int) $stock->available_stock : 0;
                 $cap = $maxStock > 0 ? min($maxStock, 5) : 5;
 
@@ -725,59 +741,23 @@ class WebsiteController extends Controller
                     ]);
                 }
 
-                $cartItem->quantity = $request->quantity;
+                $cartItem->quantity = (int) $request->quantity;
                 $cartItem->save();
 
-                // Recalculate totals
-                $cartItems = CartItem::where('cust_id', Auth::id())->get();
-                $total = 0;
-
-                foreach ($cartItems as $item) {
-                    $sQuery = ProductStockInventory::where('prod_id', $item->product_id);
-                    if ($item->variant_id) {
-                        $sQuery->where('prod_variant_id', $item->variant_id);
-                    } else {
-                        $sQuery->whereNull('prod_variant_id');
-                    }
-                    $s = $sQuery->first();
-                    // Fallback to product price if inventory price missing (safety)
-                    $price = 0;
-                    if ($s) {
-                        $price = $s->discounted_unit_price ?? $s->unit_price;
-                    } else {
-                        $p = Product::find($item->product_id);
-                        if ($p) {
-                            $price = $p->discounted_price ?? $p->p_price;
-                        }
-                    }
-
-                    $total += $price * $item->quantity;
-                }
-
-                // Calculate current row subtotal
-                $sQuery = ProductStockInventory::where('prod_id', $cartItem->product_id);
-                if ($cartItem->variant_id) {
-                    $sQuery->where('prod_variant_id', $cartItem->variant_id);
-                } else {
-                    $sQuery->whereNull('prod_variant_id');
-                }
-                $s = $sQuery->first();
-                $currentPrice = 0;
-                if ($s) {
-                    $currentPrice = $s->discounted_unit_price ?? $s->unit_price;
-                } else {
-                    $p = Product::find($cartItem->product_id);
-                    if ($p) {
-                        $currentPrice = $p->discounted_price ?? $p->p_price;
-                    }
-                }
-
-                $row_subtotal = $currentPrice * $request->quantity;
+                $cartData = CartService::build(Auth::id());
+                $changedLine = $cartData['items']->firstWhere('id', $cartItem->id);
 
                 return response()->json([
                     'success' => true,
-                    'total' => $total,
-                    'row_subtotal' => $row_subtotal
+                    'total' => $cartData['subtotal_inclusive'],
+                    'row_subtotal' => $changedLine ? $changedLine->line_total : 0,
+                    'grand_total' => $cartData['grand_total'],
+                    'charges' => $cartData['charges']->map(function ($c) {
+                        return [
+                            'charge_id' => $c->charge_id,
+                            'amount' => $c->total_amount,
+                        ];
+                    })->values()->all(),
                 ]);
             }
         }
@@ -801,34 +781,20 @@ class WebsiteController extends Controller
             if ($cartItem) {
                 $cartItem->delete();
                 if ($request->ajax()) {
-                    // Recalculate subtotal and cart count
-                    $cartItems = CartItem::where('cust_id', Auth::id())->get();
-                    $total = 0;
-                    foreach ($cartItems as $item) {
-                        $sQuery = ProductStockInventory::where('prod_id', $item->product_id);
-                        if ($item->variant_id) {
-                            $sQuery->where('prod_variant_id', $item->variant_id);
-                        } else {
-                            $sQuery->whereNull('prod_variant_id');
-                        }
-                        $s = $sQuery->first();
-                        $price = 0;
-                        if ($s) {
-                            $price = $s->discounted_unit_price ?? $s->unit_price;
-                        } else {
-                            $p = Product::find($item->product_id);
-                            if ($p) {
-                                $price = $p->discounted_price ?? $p->p_price;
-                            }
-                        }
-                        // Attach customization surcharge if present
-                        $metaKey = $item->product_id . '|' . ($item->variant_id ?: 'none');
-                        $customMeta = session('cart_customizations', []);
-                        $surcharge = isset($customMeta[$metaKey]) ? (float) ($customMeta[$metaKey]['price'] ?? 0) : 0;
-                        $total += ($price + $surcharge) * $item->quantity;
-                    }
+                    $cartData = CartService::build(Auth::id());
                     $cartCount = CartItem::where('cust_id', Auth::id())->count();
-                    return response()->json(['success' => true, 'total' => $total, 'cart_count' => $cartCount]);
+                    return response()->json([
+                        'success' => true,
+                        'total' => $cartData['subtotal_inclusive'],
+                        'grand_total' => $cartData['grand_total'],
+                        'charges' => $cartData['charges']->map(function ($c) {
+                            return [
+                                'charge_id' => $c->charge_id,
+                                'amount' => $c->total_amount,
+                            ];
+                        })->values()->all(),
+                        'cart_count' => $cartCount,
+                    ]);
                 }
                 return redirect()->back()->with('success', 'Item removed from cart successfully.');
             }
@@ -842,58 +808,14 @@ class WebsiteController extends Controller
             return redirect()->route('website.index')->with('open_login', true);
         }
 
-        $cartItems = CartItem::where('cust_id', Auth::id())
-            ->with(['product', 'variant'])
-            ->get();
+        $cartData = CartService::build(Auth::id());
 
-        $stockInfo = [];
-        $subTotal = 0;
-
-        foreach ($cartItems as $item) {
-            $stockQuery = ProductStockInventory::where('prod_id', $item->product_id);
-            if ($item->variant_id) {
-                $stockQuery->where('prod_variant_id', $item->variant_id);
-            } else {
-                $stockQuery->whereNull('prod_variant_id');
-            }
-            $stock = $stockQuery->first();
-            $stockInfo[$item->id] = $stock ? $stock->available_stock : 0;
-
-            // Attach price dynamically
-            $baseUnit = $stock ? ($stock->discounted_unit_price ?? $stock->unit_price) : ($item->product->discounted_price ?? $item->product->p_price);
-            $metaKey = $item->product_id . '|' . ($item->variant_id ?: 'none');
-            $customMeta = session('cart_customizations', []);
-            $surcharge = 0;
-            if (isset($customMeta[$metaKey])) {
-                $surcharge = (float) ($customMeta[$metaKey]['price'] ?? 0);
-            }
-            $item->price = $baseUnit + $surcharge;
-
-            $subTotal += $item->price * $item->quantity;
-        }
-
-        // Calculate Charges
-        $charges = Charge::where('charge_status', 1)->get();
-
-        $calculatedCharges = $charges->map(function ($charge) use ($subTotal) {
-            if ($subTotal == 0) {
-                $amount = 0;
-            } elseif ($charge->charge_type === 'fixed') {
-                $amount = $charge->charge_value;
-            } elseif ($charge->charge_type === 'percentage') {
-                $amount = ($subTotal * $charge->charge_value) / 100;
-            } else {
-                $amount = 0;
-            }
-
-            $charge->calculated_amount = round($amount, 2);
-            return $charge;
-        });
-
-        $totalCharges = $calculatedCharges->sum('calculated_amount');
-        $grandTotal = $subTotal + $totalCharges;
-
-        return view('website.cart', compact('cartItems', 'stockInfo', 'subTotal', 'calculatedCharges', 'grandTotal'));
+        return view('website.cart', [
+            'cartItems' => $cartData['items'],
+            'subTotal' => $cartData['subtotal_inclusive'],
+            'calculatedCharges' => $cartData['charges'],
+            'grandTotal' => $cartData['grand_total'],
+        ]);
     }
 
     public function checkout()
@@ -901,7 +823,15 @@ class WebsiteController extends Controller
         if (!Auth::check()) {
             return redirect()->route('website.index')->with('open_login', true);
         }
-        return view('website.checkout');
+
+        $cartData = CartService::build(Auth::id());
+
+        return view('website.checkout', [
+            'cartItems' => $cartData['items'],
+            'subTotal' => $cartData['subtotal_inclusive'],
+            'calculatedCharges' => $cartData['charges'],
+            'grandTotal' => $cartData['grand_total'],
+        ]);
     }
 
     public function placeOrder(Request $request)
@@ -969,67 +899,47 @@ class WebsiteController extends Controller
             $order->order_delivery_details = $deliveryDetails;
             $order->order_gst_number = $request->gst_number;
 
-            $subTotal = 0;
+            // Persist billing/contact details on the customer profile so the
+            // address survives across orders and is visible in "My Account".
+            $customer = Auth::user();
+            $customer->cust_name = trim($request->first_name . ' ' . $request->last_name);
+            $customer->cust_mobile = $request->phone;
+            $customer->cust_email = $request->email;
+            $customer->cust_address = $request->address . ($request->apartment ? ', ' . $request->apartment : '');
+            $customer->cust_city = $request->city;
+            $customer->cust_state = $request->state;
+            $customer->cust_country = 'India';
+            $customer->cust_pincode = $request->pincode;
+            $customer->save();
+
+            // Authoritative server-side pricing (never trust the client).
+            $lines = CartService::pricedLines(Auth::id());
+
             $orderItemsData = [];
             $totalCGST = 0;
             $totalSGST = 0;
             $totalGST = 0;
 
-            foreach ($cartItems as $item) {
-                $sQuery = ProductStockInventory::where('prod_id', $item->product_id);
-                if ($item->variant_id) {
-                    $sQuery->where('prod_variant_id', $item->variant_id);
-                } else {
-                    $sQuery->whereNull('prod_variant_id');
-                }
-                $s = $sQuery->first();
+            foreach ($lines as $item) {
+                // Re-verify stock availability at order time.
+                $stock = CartService::stockFor($item->product_id, $item->variant_id);
+                $availableStock = $stock ? (int) $stock->available_stock : 0;
 
-                $basePrice = $s ? ($s->discounted_unit_price ?? $s->unit_price) : ($item->product->discounted_price ?? $item->product->p_price);
-
-                // Get GST details from stock inventory
-                $gstRate = $s ? ($s->gst_rate ?? 18) : 18;
-                $gstType = $s ? ($s->gst_type ?? 'inclusive') : 'inclusive';
-                $cgstRate = $gstRate / 2;
-                $sgstRate = $gstRate / 2;
-
-                // Customization meta from session
-                $metaKey = $item->product_id . '|' . ($item->variant_id ?: 'none');
-                $customMeta = session('cart_customizations', []);
-                $surcharge = isset($customMeta[$metaKey]) ? (float) ($customMeta[$metaKey]['price'] ?? 0) : 0;
-                $customizationOption = $customMeta[$metaKey]['option'] ?? null;
-                $customizationText = $customMeta[$metaKey]['text'] ?? null;
-
-                // Calculate GST
-                $itemPriceBeforeGST = $basePrice + $surcharge;
-                $itemCGST = 0;
-                $itemSGST = 0;
-                $itemGST = 0;
-                $displayPrice = $itemPriceBeforeGST;
-                $itemTotal = $itemPriceBeforeGST * $item->quantity;
-
-                if ($gstType === 'inclusive') {
-                    // Price includes GST - calculate backwards
-                    // If price is ₹118 (inclusive of 18% GST), then base = 118 / 1.18 = ₹100
-                    $itemPriceBeforeGST = round($itemPriceBeforeGST / (1 + ($gstRate / 100)), 2);
-                    $itemGST = round(($displayPrice - $itemPriceBeforeGST) * $item->quantity, 2);
-                    $itemCGST = round($itemGST / 2, 2);
-                    $itemSGST = round($itemGST / 2, 2);
-                } else {
-                    // Price excludes GST - add GST on top
-                    $itemCGST = round(($itemPriceBeforeGST * $cgstRate) / 100, 2);
-                    $itemSGST = round(($itemPriceBeforeGST * $sgstRate) / 100, 2);
-                    $itemGST = $itemCGST + $itemSGST;
-                    $displayPrice = $itemPriceBeforeGST + $itemCGST + $itemSGST;
-                    $itemTotal = $displayPrice * $item->quantity;
+                if ($item->quantity > $availableStock) {
+                    DB::rollback();
+                    return redirect()->back()->with('error', "Insufficient stock for \"{$item->product->p_name}\". Available: {$availableStock}.");
                 }
 
-                // For subtotal, use price before GST
-                $subTotal += $itemPriceBeforeGST * $item->quantity;
-                $totalCGST += $itemCGST * $item->quantity;
-                $totalSGST += $itemSGST * $item->quantity;
-                $totalGST += $itemGST * $item->quantity;
+                $pricing = PricingService::itemPricing(
+                    $item->display_unit,
+                    $item->gst_rate,
+                    $item->gst_type,
+                    $item->quantity
+                );
 
-                $item->price = $displayPrice; // For model saving
+                $totalCGST += $pricing['line_cgst'];
+                $totalSGST += $pricing['line_sgst'];
+                $totalGST += $pricing['line_gst'];
 
                 $orderItemsData[] = [
                     'product_id' => $item->product_id,
@@ -1041,56 +951,77 @@ class WebsiteController extends Controller
                     'variant_id' => $item->variant_id,
                     'variant_name' => $item->variant ? $item->variant->prod_variant : null,
                     'product_qty' => $item->quantity,
-                    'product_rate' => $itemPriceBeforeGST, // Price without GST
-                    'price' => $itemTotal,
-                    'gst_rate' => $gstRate,
-                    'gst_type' => $gstType,
-                    'cgst_rate' => $cgstRate,
-                    'cgst_amount' => $itemCGST * $item->quantity,
-                    'sgst_rate' => $sgstRate,
-                    'sgst_amount' => $itemSGST * $item->quantity,
-                    'gst_amount' => $itemGST * $item->quantity,
-                    'customization_option' => $customizationOption,
-                    'customization_text' => $customizationText,
-                    'customization_price' => $surcharge,
+                    'product_rate' => $pricing['base_unit_price'], // base price without GST
+                    'price' => $pricing['unit_price_incl_gst'], // GST-inclusive unit price
+                    'total_price' => $pricing['line_total_incl_gst'], // GST-inclusive line total
+                    'gst_rate' => $pricing['gst_rate'],
+                    'gst_type' => $pricing['gst_type'],
+                    'cgst_rate' => $pricing['cgst_rate'],
+                    'cgst_amount' => $pricing['line_cgst'],
+                    'sgst_rate' => $pricing['sgst_rate'],
+                    'sgst_amount' => $pricing['line_sgst'],
+                    'gst_amount' => $pricing['line_gst'],
+                    'customization_option' => $item->customization_option,
+                    'customization_text' => $item->customization_text,
+                    'customization_price' => $item->surcharge,
                 ];
             }
 
-            // Calculate Charges (Delivery, etc.)
+            $subtotalBase = round($lines->sum('line_base'), 2);
+            $subtotalInclusive = round($lines->sum('line_total'), 2);
+
+            // Calculate charges (delivery / processing) with their own GST.
             $charges = Charge::where('charge_status', 1)->get();
             $calculatedCharges = [];
-            $totalCharges = 0;
+            $totalChargesInclGst = 0;
+            $totalChargeGst = 0;
 
             foreach ($charges as $charge) {
-                if ($subTotal == 0) {
-                    $amount = 0;
-                } elseif ($charge->charge_type === 'fixed') {
-                    $amount = $charge->charge_value;
-                } elseif ($charge->charge_type === 'percentage') {
-                    $amount = ($subTotal * $charge->charge_value) / 100;
-                } else {
-                    $amount = 0;
-                }
+                $waived = PricingService::isChargeWaived($charge, $subtotalInclusive);
+                $base = $waived ? 0.0 : PricingService::chargeBaseAmount($charge, $subtotalBase, $subtotalInclusive);
 
-                $charge->calculated_amount = round($amount, 2);
+                $pricing = PricingService::chargePricing(
+                    $base,
+                    $charge->gst_rate,
+                    $charge->gst_type,
+                    $charge->cgst_rate,
+                    $charge->sgst_rate
+                );
+
+                $totalChargesInclGst += $pricing['total_amount_incl_gst'];
+                $totalChargeGst += $pricing['gst_amount'];
+
                 $calculatedCharges[] = [
                     'charge_id' => $charge->charge_id,
                     'charge_name' => $charge->charge_name,
                     'charge_value' => $charge->charge_value,
                     'charge_type' => $charge->charge_type,
-                    'calculated_amount' => $charge->calculated_amount
+                    'gst_rate' => $pricing['gst_rate'],
+                    'gst_type' => $pricing['gst_type'],
+                    'cgst_rate' => $pricing['cgst_rate'],
+                    'sgst_rate' => $pricing['sgst_rate'],
+                    'calculated_amount' => $pricing['total_amount_incl_gst'], // GST-inclusive
+                    'calculated_amount_before_gst' => $pricing['base_amount'],
+                    'cgst_amount' => $pricing['cgst_amount'],
+                    'sgst_amount' => $pricing['sgst_amount'],
+                    'gst_amount' => $pricing['gst_amount'],
+                    'total_amount' => $pricing['total_amount_incl_gst'],
+                    'applied' => !$waived,
                 ];
-                $totalCharges += $charge->calculated_amount;
             }
 
-            // Add CGST and SGST to charges for invoice display
+            // Add CGST and SGST for invoice display (product taxes only).
             if ($totalCGST > 0) {
                 $calculatedCharges[] = [
                     'charge_id' => 'cgst',
                     'charge_name' => 'CGST',
                     'charge_value' => '',
                     'charge_type' => 'tax',
-                    'calculated_amount' => round($totalCGST, 2)
+                    'calculated_amount' => round($totalCGST, 2),
+                    'calculated_amount_before_gst' => round($totalCGST, 2),
+                    'cgst_amount' => round($totalCGST, 2),
+                    'sgst_amount' => 0,
+                    'gst_amount' => round($totalCGST, 2),
                 ];
             }
             if ($totalSGST > 0) {
@@ -1099,16 +1030,21 @@ class WebsiteController extends Controller
                     'charge_name' => 'SGST',
                     'charge_value' => '',
                     'charge_type' => 'tax',
-                    'calculated_amount' => round($totalSGST, 2)
+                    'calculated_amount' => round($totalSGST, 2),
+                    'calculated_amount_before_gst' => round($totalSGST, 2),
+                    'cgst_amount' => 0,
+                    'sgst_amount' => round($totalSGST, 2),
+                    'gst_amount' => round($totalSGST, 2),
                 ];
             }
 
-            $grandTotal = $subTotal + $totalCGST + $totalSGST + $totalCharges;
+            $grandTotal = round($subtotalInclusive + $totalChargesInclGst, 2);
 
             $order->order_items = $orderItemsData;
-            $order->order_items_qty = $cartItems->sum('quantity');
+            $order->order_items_qty = $lines->sum('quantity');
             $order->order_charges = $calculatedCharges;
-            $order->order_gst_amount = round($totalGST, 2);
+            // Product GST + charge GST (matches grand total exactly).
+            $order->order_gst_amount = round($totalGST + $totalChargeGst, 2);
             $order->order_total_amt = $grandTotal;
             $order->order_paid_amt = 0;
             $order->order_due_amt = $grandTotal;
@@ -1123,8 +1059,8 @@ class WebsiteController extends Controller
 
             $order->save();
 
-            // Also save to tbl_order_items for legacy/reporting
-            foreach ($cartItems as $item) {
+            // Also save to order_items table for legacy/reporting
+            foreach ($lines as $item) {
                 $orderItem = new OrderItem();
                 $orderItem->order_id = $order->order_id;
                 $orderItem->product_id = $item->product_id;
@@ -1133,7 +1069,7 @@ class WebsiteController extends Controller
                 $orderItem->variant_name = $item->variant ? $item->variant->prod_variant : null;
                 $orderItem->quantity = $item->quantity;
                 $orderItem->price = $item->price;
-                $orderItem->total_price = $item->price * $item->quantity;
+                $orderItem->total_price = $item->line_total;
                 $orderItem->save();
             }
 
@@ -1181,19 +1117,7 @@ class WebsiteController extends Controller
             $order->save();
 
             // Decrement stock for COD orders
-            foreach ($order->order_items as $item) {
-                $stockQuery = ProductStockInventory::where('prod_id', $item['product_id']);
-                if (!empty($item['variant_id'])) {
-                    $stockQuery->where('prod_variant_id', $item['variant_id']);
-                } else {
-                    $stockQuery->whereNull('prod_variant_id');
-                }
-                $stock = $stockQuery->first();
-
-                if ($stock) {
-                    $stock->decrement('available_stock', $item['product_qty']);
-                }
-            }
+            $this->decrementStock($order);
 
             DB::commit();
 
@@ -1357,7 +1281,14 @@ class WebsiteController extends Controller
         $categoryId = $request->query('category');
 
         $query = Product::where('p_status', 1)
-            ->where('p_name', 'like', '%' . $q . '%');
+            ->where(function ($inner) use ($q) {
+                $inner->where('p_name', 'like', '%' . $q . '%')
+                    ->orWhere('p_tag', 'like', '%' . $q . '%')
+                    ->orWhere('p_short_desc', 'like', '%' . $q . '%')
+                    ->orWhereHas('category', function ($q3) use ($q) {
+                        $q3->where('cat_name', 'like', '%' . $q . '%');
+                    });
+            });
         if (!empty($categoryId)) {
             $query->where('p_cat_id', $categoryId);
         }
@@ -1393,19 +1324,7 @@ class WebsiteController extends Controller
             $order->save();
 
             // Restore stock for cancelled orders
-            foreach ($order->order_items as $item) {
-                $stockQuery = ProductStockInventory::where('prod_id', $item['product_id']);
-                if (!empty($item['variant_id'])) {
-                    $stockQuery->where('prod_variant_id', $item['variant_id']);
-                } else {
-                    $stockQuery->whereNull('prod_variant_id');
-                }
-                $stock = $stockQuery->first();
-
-                if ($stock) {
-                    $stock->increment('available_stock', $item['product_qty']);
-                }
-            }
+            $this->restoreStock($order);
 
             $statusText = "Order Cancelled";
 
@@ -1478,19 +1397,7 @@ class WebsiteController extends Controller
                     $order->save();
 
                     // Decrement stock for online payment orders
-                    foreach ($order->order_items as $item) {
-                        $stockQuery = ProductStockInventory::where('prod_id', $item['product_id']);
-                        if (!empty($item['variant_id'])) {
-                            $stockQuery->where('prod_variant_id', $item['variant_id']);
-                        } else {
-                            $stockQuery->whereNull('prod_variant_id');
-                        }
-                        $stock = $stockQuery->first();
-
-                        if ($stock) {
-                            $stock->decrement('available_stock', $item['product_qty']);
-                        }
-                    }
+                    $this->decrementStock($order);
 
                     // Clear cart for the customer
                     CartItem::where('cust_id', $order->order_placed_cust_id)->delete();
@@ -1531,19 +1438,7 @@ class WebsiteController extends Controller
                 $order->save();
 
                 // Decrement stock for online payment orders
-                foreach ($order->order_items as $item) {
-                    $stockQuery = ProductStockInventory::where('prod_id', $item['product_id']);
-                    if (!empty($item['variant_id'])) {
-                        $stockQuery->where('prod_variant_id', $item['variant_id']);
-                    } else {
-                        $stockQuery->whereNull('prod_variant_id');
-                    }
-                    $stock = $stockQuery->first();
-
-                    if ($stock) {
-                        $stock->decrement('available_stock', $item['product_qty']);
-                    }
-                }
+                $this->decrementStock($order);
 
                 // Clear cart for the customer
                 CartItem::where('cust_id', $order->order_placed_cust_id)->delete();
@@ -1553,6 +1448,34 @@ class WebsiteController extends Controller
         }
 
         return response()->json(['status' => 'received']);
+    }
+
+    /**
+     * Decrement available stock for every line of an order.
+     */
+    private function decrementStock(Order $order): void
+    {
+        foreach ($order->order_items as $item) {
+            $stock = CartService::stockFor((int) $item['product_id'], $item['variant_id'] ?? null);
+
+            if ($stock) {
+                $stock->decrement('available_stock', (int) ($item['product_qty'] ?? 1));
+            }
+        }
+    }
+
+    /**
+     * Restore available stock for every line of an order.
+     */
+    private function restoreStock(Order $order): void
+    {
+        foreach ($order->order_items as $item) {
+            $stock = CartService::stockFor((int) $item['product_id'], $item['variant_id'] ?? null);
+
+            if ($stock) {
+                $stock->increment('available_stock', (int) ($item['product_qty'] ?? 1));
+            }
+        }
     }
 
     /**

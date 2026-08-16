@@ -103,7 +103,7 @@
                                         <p class="text-sm text-gray-600">
                                             Qty: <span class="fw-semibold text-heading">{{ $item['product_qty'] }}</span> x ₹{{ number_format($item['product_rate'] ?? 0, 2) }}
                                         </p>
-                                        <p class="text-md fw-semibold text-main-600">₹{{ number_format($item['price'] ?? 0, 2) }}</p>
+                                        <p class="text-md fw-semibold text-main-600">₹{{ number_format($item['total_price'] ?? ($item['price'] * ($item['product_qty'] ?? 1)), 2) }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -164,9 +164,20 @@
                         <h6 class="mb-24 border-bottom border-gray-100 pb-16">Order Summary</h6>
                         
                         @php
-                            // Calculate subtotal from items to ensure accuracy or use stored
-                            // The Order model stores charges separately
-                            $subTotal = collect($order->order_items)->sum('price');
+                            // Subtotal = sum of GST-inclusive line totals.
+                            // Item 'price' is the GST-inclusive unit price, so use
+                            // total_price (or price * qty for legacy orders).
+                            $subTotal = collect($order->order_items)->sum(function ($item) {
+                                return (float) ($item['total_price'] ?? ($item['price'] * ($item['product_qty'] ?? 1)));
+                            });
+                            // Real charges carry their own GST and are already
+                            // GST-inclusive in 'calculated_amount'. Tax rows
+                            // (CGST/SGST/GST) are embedded in the item prices and
+                            // must NOT be added again.
+                            $displayCharges = collect($order->order_charges)->filter(function ($charge) {
+                                return ($charge['charge_type'] ?? '') !== 'tax'
+                                    && !in_array($charge['charge_id'] ?? null, ['cgst', 'sgst', 'gst']);
+                            });
                         @endphp
 
                         <div class="flex-between mb-12">
@@ -174,14 +185,17 @@
                             <span class="text-heading fw-medium">₹{{ number_format($subTotal, 2) }}</span>
                         </div>
 
-                        @if(!empty($order->order_charges))
-                            @foreach($order->order_charges as $charge)
-                                <div class="flex-between mb-12">
-                                    <span class="text-gray-600">{{ $charge['charge_name'] }}</span>
-                                    <span class="text-heading fw-medium">+ ₹{{ number_format($charge['calculated_amount'] ?? 0, 2) }}</span>
-                                </div>
-                            @endforeach
-                        @endif
+                        @foreach($displayCharges as $charge)
+                            <div class="flex-between mb-12">
+                                <span class="text-gray-600">
+                                    {{ $charge['charge_name'] }}
+                                    @if(isset($charge['gst_rate']) && $charge['gst_rate'] > 0)
+                                        (incl. {{ number_format($charge['gst_rate'], 0) }}% GST)
+                                    @endif
+                                </span>
+                                <span class="text-heading fw-medium">+ ₹{{ number_format($charge['calculated_amount'] ?? ($charge['total_amount'] ?? 0), 2) }}</span>
+                            </div>
+                        @endforeach
 
                         <div class="border-top border-gray-100 pt-16 mt-16 flex-between">
                             <span class="text-lg fw-semibold text-heading">Grand Total</span>

@@ -57,7 +57,7 @@
                                         </div>
                                         <div class="col-md-2 col-6">
                                             <span class="text-gray-500 text-sm d-block d-md-none">Quantity</span>
-                                            @php $maxCap = isset($stockInfo[$item->id]) ? min((int)$stockInfo[$item->id], 5) : 5; @endphp
+                                            @php $maxCap = isset($item->stock) && (int)$item->stock->available_stock > 0 ? min((int)$item->stock->available_stock, 5) : 5; @endphp
                                             <div class="d-flex align-items-center gap-8">
                                                 <button type="button" class="btn btn-sm border border-gray-200 w-32 h-32 flex-center rounded-6 text-neutral-600 bg-gray-50 hover-bg-main-600 hover-text-white" onclick="changeCartQty({{ $item->id }}, -1, {{ $maxCap }})">
                                                     <i class="ph ph-minus"></i>
@@ -267,25 +267,18 @@
         function formatINR(n) {
             return '₹' + Number(n).toFixed(2);
         }
-        function recomputeChargesAndTotal(subtotal) {
+        function recomputeChargesAndTotal(subtotal, charges, grandTotal) {
             const subtotalEl = document.getElementById('cart-subtotal');
             if (subtotalEl) subtotalEl.textContent = formatINR(subtotal);
-            let total = subtotal;
-            document.querySelectorAll('.charge-row').forEach(function(row){
-                const type = row.getAttribute('data-charge-type');
-                const val = parseFloat(row.getAttribute('data-charge-value') || '0');
-                let amt = 0;
-                if (type === 'flat') {
-                    amt = val;
-                } else if (type === 'percentage') {
-                    amt = subtotal * (val / 100);
-                }
-                const amtEl = row.querySelector('.charge-amount');
-                if (amtEl) amtEl.textContent = formatINR(amt);
-                total += amt;
-            });
+            if (charges && Array.isArray(charges)) {
+                document.querySelectorAll('.charge-row').forEach(function(row, idx){
+                    const amtEl = row.querySelector('.charge-amount');
+                    const amount = typeof charges[idx] !== 'undefined' ? parseFloat(charges[idx].amount || 0) : 0;
+                    if (amtEl) amtEl.textContent = formatINR(amount);
+                });
+            }
             const totalEl = document.getElementById('cart-total');
-            if (totalEl) totalEl.textContent = formatINR(total);
+            if (totalEl) totalEl.textContent = formatINR(grandTotal);
             const proceedBtn = document.getElementById('proceed-to-checkout-btn');
             if (proceedBtn) {
                 if (subtotal > 0) {
@@ -311,7 +304,7 @@
             if (data && data.success) {
                 const row = document.getElementById('row-subtotal-' + id);
                 if (row) row.textContent = formatINR(data.row_subtotal);
-                recomputeChargesAndTotal(parseFloat(data.total || 0));
+                recomputeChargesAndTotal(parseFloat(data.total || 0), data.charges, parseFloat(data.grand_total || 0));
             } else {
                 window.snToast('error', data.message || 'Unable to update quantity');
                 return false;
@@ -357,7 +350,7 @@
             if (data && data.success) {
                 const itemEl = document.querySelector('.cart-item[data-id="'+id+'"]');
                 if (itemEl) itemEl.remove();
-                recomputeChargesAndTotal(parseFloat(data.total || 0));
+                recomputeChargesAndTotal(parseFloat(data.total || 0), data.charges, parseFloat(data.grand_total || 0));
                 const badge = document.getElementById('header-cart-count');
                 if (badge && typeof data.cart_count !== 'undefined') {
                     badge.textContent = String(data.cart_count);
