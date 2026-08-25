@@ -1,0 +1,27 @@
+includes:
+    - vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    # Level 5 - good balance between strictness and practicality
+    # Increase to 6, 7, or 8 for stricter analysis
+    level: 5
+
+    ignoreErrors:
+        # Ignore missing type hints on common Laravel patterns
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder::[a-zA-Z]+#'
+        - '#Call to an undefined method Illuminate\\Database\\Query\\Builder::[a-zA-Z]+#'
+
+    excludePaths:
+        - app/Console
+        - app/Exceptions
+        - app/Providers
+        - app/Helpers
+        - vendor/*
+        - tests/*
+        - database/*
+
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false

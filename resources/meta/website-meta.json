@@ -1,0 +1,87 @@
+{
+  "default": {
+    "title": "Study Nest - Simplifying School Shopping",
+    "description": "Shop school essentials with confidence. Accurate kits delivered to your doorstep.",
+    "keywords": ["school", "books", "uniforms", "accessories", "studynest"]
+  },
+  "website.index": {
+    "title": "Study Nest — Home",
+    "description": "Discover curated school kits, uniforms, books and accessories at Study Nest.",
+    "keywords": ["home", "school kits", "uniforms", "books", "accessories"]
+  },
+  "website.shop": {
+    "title": "Shop — Study Nest",
+    "description": "Browse categories and find essentials for your school and class.",
+    "keywords": ["shop", "categories", "school", "class"]
+  },
+  "website.school-shop": {
+    "title": "School Shop — Study Nest",
+    "description": "Filter products by school and class with accurate bundles and kits.",
+    "keywords": ["school shop", "bundles", "kits", "filters"]
+  },
+  "website.product-details": {
+    "title": "Product Details — Study Nest",
+    "description": "View product specifications, variants, stock and customization options.",
+    "keywords": ["product", "details", "variants", "customization"]
+  },
+  "website.about-us": {
+    "title": "About Us — Study Nest",
+    "description": "Learn about Study Nest’s mission to simplify school shopping.",
+    "keywords": ["about", "mission", "studynest"]
+  },
+  "website.contact-us": {
+    "title": "Contact Us — Study Nest",
+    "description": "Get in touch with Study Nest for support and inquiries.",
+    "keywords": ["contact", "support", "help"]
+  },
+  "website.prebooking": {
+    "title": "Pre-Booking — Study Nest",
+    "description": "Reserve school kits in advance to avoid last-minute rush.",
+    "keywords": ["prebooking", "reserve", "kits"]
+  },
+  "website.cart": {
+    "title": "Your Cart — Study Nest",
+    "description": "Review selected items, quantities and totals before checkout.",
+    "keywords": ["cart", "checkout", "order"]
+  },
+  "website.orders.index": {
+    "title": "My Orders — Study Nest",
+    "description": "View your order history and track current orders.",
+    "keywords": ["orders", "history", "track"]
+  },
+  "website.orders.show": {
+    "title": "Order Details — Study Nest",
+    "description": "Order summary, items and delivery details for your purchase.",
+    "keywords": ["order details", "summary", "delivery"]
+  },
+  "website.disclaimer": {
+    "title": "Disclaimer StudyNested Product & Information Liability Terms",
+    "description": "Read the StudyNested disclaimer covering product accuracy, school references, third party services and user responsibility while ordering supplies online.",
+    "keywords": ["disclaimer", "liability", "terms", "product information"]
+  },
+  "website.terms-conditions": {
+    "title": "Terms & Conditions | StudyNested Website Usage Rules Policy",
+    "description": "Read StudyNested terms and conditions for website usage, orders, payments, delivery rules and customer responsibilities when purchasing school supplies online.",
+    "keywords": ["terms", "conditions", "ordering", "payments", "delivery"]
+  },
+  "website.privacy-policy": {
+    "title": "Privacy Policy | StudyNested – User Data & Protection",
+    "description": "Read StudyNested privacy policy to understand how we collect, use, and protect your personal information while ordering school kits, books and supplies online.",
+    "keywords": ["privacy", "data", "security", "policy"]
+  },
+  "website.refund-policy": {
+    "title": "Refund & Cancellation Policy | StudyNested Orders & Returns",
+    "description": "Read StudyNested refund and cancellation policy for school kits, uniforms and supplies. Know return rules, exchanges, refunds and order cancellation terms.",
+    "keywords": ["refund", "returns", "policy", "exchange"]
+  },
+  "website.checkout": {
+    "title": "Checkout — Study Nest",
+    "description": "Confirm your delivery details, review order totals and place your order securely.",
+    "keywords": ["checkout", "order", "payment"]
+  },
+  "website.thank-you": {
+    "title": "Thank You — Study Nest",
+    "description": "Your order has been placed successfully. Track updates from your orders page.",
+    "keywords": ["thank you", "order placed", "confirmation"]
+  }
+}
