@@ -68,11 +68,31 @@ C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE studynest_dev CHARACTER
 
 ### Step 4: Import the Production Database
 
+The SQL dump is included in the repo at `database/production-dump.sql`.
+
 ```powershell
-cmd /c "C:\xampp\mysql\bin\mysql.exe -u root studynest_dev < ""C:\Users\YourName\Downloads\Document from _"""
+cmd /c "C:\xampp\mysql\bin\mysql.exe -u root studynest_dev < ""C:\Users\YourName\Desktop\studynest\database\production-dump.sql"""
 ```
 
-> Replace the path with your actual SQL dump file location.
+> **Replace `YourName`** with your Windows username.
+
+**Verify the import worked:**
+
+```powershell
+C:\xampp\mysql\bin\mysql.exe -u root -e "USE studynest_dev; SELECT COUNT(*) AS products FROM tbl_products; SELECT COUNT(*) AS orders FROM tbl_orders; SELECT COUNT(*) AS customers FROM tbl_customers;"
+```
+
+You should see:
+```
+products
+1052
+orders
+108
+customers
+42
+```
+
+> **If products = 0, the import failed.** Re-run the import command and check for errors.
 
 ### Step 5: Set Up Environment File
 
@@ -154,20 +174,24 @@ C:\Users\YourName\AppData\Local\Microsoft\WinGet\Packages\PHP.PHP.8.4_Microsoft.
 
 ## Quick Reference — All Commands in One Shot
 
-Copy-paste this entire block into PowerShell (adjust paths for your username):
+Copy-paste this entire block into PowerShell. **Change only the first 2 lines** (your username and project path):
 
 ```powershell
-# Set PHP 8.4 path (adjust for your system)
-$php = "C:\Users\imohi\AppData\Local\Microsoft\WinGet\Packages\PHP.PHP.8.4_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe"
+# === CHANGE THESE ===
+$php = "C:\Users\YourName\AppData\Local\Microsoft\WinGet\Packages\PHP.PHP.8.4_Microsoft.Winget.Source_8wekyb3d8bbwe\php.exe"
+$projectPath = "C:\Users\YourName\Desktop\studynest"
+# =====================
 
-# Navigate to project
-cd C:\Users\imohi\Desktop\studynest
+cd $projectPath
 
 # Create database
 C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS studynest_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# Import database (adjust path to your SQL dump)
-cmd /c "C:\xampp\mysql\bin\mysql.exe -u root studynest_dev < ""C:\Users\imohi\Downloads\Document from _"""
+# Import database (dump is inside the repo)
+cmd /c "C:\xampp\mysql\bin\mysql.exe -u root studynest_dev < ""$projectPath\database\production-dump.sql"""
+
+# Verify import
+C:\xampp\mysql\bin\mysql.exe -u root -e "USE studynest_dev; SELECT COUNT(*) AS products FROM tbl_products;"
 
 # Setup .env
 if (!(Test-Path .env)) { copy .env.example .env }
@@ -188,6 +212,18 @@ if (!(Test-Path .env)) { copy .env.example .env }
 ---
 
 ## Troubleshooting
+
+### Homepage Shows No Products (Empty Shop)
+
+This means the database import failed or wasn't run. Fix:
+
+```powershell
+# Check if tables have data
+C:\xampp\mysql\bin\mysql.exe -u root -e "USE studynest_dev; SELECT COUNT(*) FROM tbl_products;"
+
+# If count is 0, re-import the dump
+cmd /c "C:\xampp\mysql\bin\mysql.exe -u root studynest_dev < ""C:\Users\YourName\Desktop\studynest\database\production-dump.sql"""
+```
 
 ### "Composer detected issues in your platform: PHP version >= 8.4.1"
 
