@@ -135,8 +135,8 @@
 
                                 @foreach($cartItems as $item)
                                     @php
-                                        {{-- START: imohitmehto | 2026-08-25 | FIX: Price source changed from ProductVariant to ProductStockInventory --}}
-                                        {{-- ProductVariant table has no price fields; stock inventory is the single source of truth --}}
+                                        // START: imohitmehto | 2026-08-25 | FIX: Price source changed from ProductVariant to ProductStockInventory
+                                        // ProductVariant table has no price fields; stock inventory is the single source of truth
                                         $sQuery = \App\Models\ProductStockInventory::where('prod_id', $item->product_id);
                                         if ($item->variant_id) {
                                             $sQuery->where('prod_variant_id', $item->variant_id);
@@ -145,7 +145,7 @@
                                         }
                                         $stock = $sQuery->first();
                                         $price = $stock ? ($stock->discounted_unit_price ?? $stock->unit_price) : ($item->product->discounted_price ?? $item->product->p_price);
-                                        {{-- END: imohitmehto | FIX: Price source consistency --}}
+                                        // END: imohitmehto | FIX: Price source consistency
 
                                         // Check for session-based customization surcharge
                                         $metaKey = $item->product_id . '|' . ($item->variant_id ?: 'none');
@@ -168,8 +168,8 @@
                                 </div>
                                 
                                 @php
-                                    {{-- START: imohitmehto | 2026-08-25 | FIX: Delivery charges now iterate active Charge records --}}
-                                    {{-- Previously referenced non-existent delivery_charge column on Order model --}}
+                                    // START: imohitmehto | 2026-08-25 | FIX: Delivery charges now iterate active Charge records
+                                    // Previously referenced non-existent delivery_charge column on Order model
                                     $activeCharges = \App\Models\Charge::where('charge_status', 1)->get();
                                     $deliveryCharge = 0;
                                     foreach ($activeCharges as $charge) {
@@ -180,7 +180,7 @@
                                         }
                                     }
                                     $deliveryCharge = round($deliveryCharge, 2);
-                                    {{-- END: imohitmehto | FIX: Delivery charges iteration --}}
+                                    // END: imohitmehto | FIX: Delivery charges iteration
                                 @endphp
                                 <div class="mb-32 flex-between gap-8">
                                     <span class="text-gray-900 font-heading-two">Delivery Charge</span>

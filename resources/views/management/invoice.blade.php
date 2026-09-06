@@ -5,7 +5,7 @@
     <title>Invoice #{{ $order->order_id }}</title>
     <style>
         body {
-            font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif;
+            font-family: 'DejaVu Sans', 'Helvetica Neue', Arial, sans-serif;
             color: #333;
             font-size: 14px;
             line-height: 1.5;
@@ -186,6 +186,8 @@
                         @else
                             <span style="color: #e67e22; font-weight: bold;">Pending</span>
                         @endif
+                        <br>
+                        <strong>Order Date:</strong> {{ date('F d, Y', strtotime($order->order_date_time)) }}
                     </div>
                 </td>
             </tr>
@@ -218,7 +220,7 @@
                         </td>
                         <td class="text-center">{{ $item['product_qty'] ?? 1 }}</td>
                         <td class="text-right">₹{{ number_format($item['product_rate'] ?? 0, 2) }}</td>
-                        <td class="text-right">₹{{ number_format($item['price'] ?? ($item['product_total'] ?? 0), 2) }}</td>
+                        <td class="text-right">₹{{ number_format((float)($item['product_rate'] ?? 0) * (float)($item['product_qty'] ?? 1), 2) }}</td>
                     </tr>
                     @endforeach
                 @endif
@@ -254,10 +256,11 @@
                     <table class="totals-table">
                         @php
                             $charges = is_array($order->order_charges) ? $order->order_charges : json_decode($order->order_charges, true);
-                            $totalCharges = 0;
                             $cgstAmount = 0;
                             $sgstAmount = 0;
+                            $deliveryCharges = [];
                             $otherCharges = [];
+                            $totalOtherCharges = 0;
                             if(is_array($charges)) {
                                 foreach($charges as $charge) {
                                     $chargeName = strtolower($charge['charge_name'] ?? '');
@@ -266,18 +269,31 @@
                                         $cgstAmount = $amount;
                                     } elseif($chargeName === 'sgst') {
                                         $sgstAmount = $amount;
+                                    } elseif($chargeName === 'delivery charge') {
+                                        $deliveryCharges[] = $charge;
                                     } else {
                                         $otherCharges[] = $charge;
-                                        $totalCharges += $amount;
+                                        $totalOtherCharges += $amount;
                                     }
                                 }
                             }
-                            // Calculate subtotal (price before GST)
-                            $subTotal = $order->order_total_amt - $cgstAmount - $sgstAmount - $totalCharges;
+                            foreach($deliveryCharges as $charge) {
+                                $totalOtherCharges += (float)($charge['calculated_amount'] ?? 0);
+                            }
+                            $items = is_array($order->order_items) ? $order->order_items : json_decode($order->order_items, true);
+                            $gstRate = (is_array($items) && isset($items[0]['gst_rate'])) ? $items[0]['gst_rate'] : 0;
+                            // Calculate subtotal (price before GST) from stored item data
+                            $subTotal = 0;
+                            if (is_array($items)) {
+                                foreach ($items as $item) {
+                                    $subTotal += (float)($item['product_rate'] ?? 0) * (float)($item['product_qty'] ?? 1);
+                                }
+                            }
+                            $subTotal = round($subTotal, 2);
                         @endphp
                         
                         <tr>
-                            <td>Subtotal (before GST)</td>
+                            <td>Subtotal (after GST)</td>
                             <td>₹{{ number_format($subTotal, 2) }}</td>
                         </tr>
                         
@@ -295,6 +311,20 @@
                         </tr>
                         @endif
                         
+                        @foreach($deliveryCharges as $charge)
+                        <tr>
+                            <td>
+                                <strong>Delivery Charge</strong>
+                                @if(($charge['charge_type'] ?? '') === 'fixed')
+                                    <span style="color: #888;">(₹ {{ number_format((float)($charge['charge_value'] ?? 0), 2) }})</span>
+                                @elseif(($charge['charge_type'] ?? '') === 'percentage')
+                                    <span style="color: #888;">({{ $charge['charge_value'] ?? 0 }}%)</span>
+                                @endif
+                            </td>
+                            <td>₹{{ number_format((float)($charge['calculated_amount'] ?? 0), 2) }}</td>
+                        </tr>
+                        @endforeach
+                        
                         @if(is_array($otherCharges))
                             @foreach($otherCharges as $charge)
                             <tr>
@@ -303,10 +333,19 @@
                             </tr>
                             @endforeach
                         @endif
+
+                        @if(($order->order_discount ?? 0) > 0)
+                        <tr>
+                            <td style="color: #28a745;">Coupon Discount
+                                @if($order->order_coupon_code) ({{ $order->order_coupon_code }}) @endif
+                            </td>
+                            <td style="color: #28a745;">-₹{{ number_format($order->order_discount, 2) }}</td>
+                        </tr>
+                        @endif
                         
                         <tr class="grand-total">
                             <td>Total Amount</td>
-                            <td>₹{{ number_format($order->order_total_amt, 2) }}</td>
+                            <td>₹{{ number_format(round($order->order_total_amt), 0) }}</td>
                         </tr>
                     </table>
                 </td>

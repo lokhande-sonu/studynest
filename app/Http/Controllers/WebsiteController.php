@@ -1118,7 +1118,7 @@ class WebsiteController extends Controller
                 ];
             }
 
-            $grandTotal = $subTotal + $totalCGST + $totalSGST + $totalCharges;
+            $grandTotal = round($subTotal + $totalCGST + $totalSGST + $totalCharges);
 
             $order->order_items = $orderItemsData;
             $order->order_items_qty = $cartItems->sum('quantity');
@@ -1350,6 +1350,24 @@ class WebsiteController extends Controller
         return view('website.my-orders.show', compact('order'));
     }
 
+    /**
+     * Download invoice PDF for the authenticated customer's own order.
+     */
+    public function orderInvoice($id)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('website.index')->with('open_login', true);
+        }
+
+        $order = Order::where('order_id', $id)
+            ->where('order_placed_cust_id', Auth::id())
+            ->firstOrFail();
+
+        $pdf = \PDF::loadView('management.invoice', compact('order'));
+
+        return $pdf->download('invoice-' . $order->order_id . '.pdf');
+    }
+
     public function trackOrder(Request $request)
     {
         $request->validate([
@@ -1455,12 +1473,18 @@ class WebsiteController extends Controller
                 ? $order->order_delivery_details
                 : json_decode($order->order_delivery_details, true);
 
-            // Mail::to($delivery['email'] ?? null)
-            //     ->send(new OrderStatusUpdateMail(
-            //         $order,
-            //         $statusText,
-            //         now()->format('d M Y h:i A')
-            //     ));
+            $cancelEmail = $delivery['email'] ?? null;
+            if (!empty($cancelEmail) && filter_var($cancelEmail, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    Mail::to($cancelEmail)->send(new OrderStatusUpdateMail(
+                        $order,
+                        $statusText,
+                        now()->format('d M Y h:i A')
+                    ));
+                } catch (\Exception $e) {
+                    Log::error('Order Cancel Email Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                }
+            }
 
             // WhatsApp & SMS Notification to Customer
             if ($delivery['phone'] ?? null) {
@@ -1606,10 +1630,16 @@ class WebsiteController extends Controller
             $delivery = $order->order_delivery_details;
 
             // Email to Customer
-            //Mail::to($delivery['email'] ?? null)->send(new OrderPlacedMail($order, 'customer'));
+            $customerEmail = $delivery['email'] ?? ($order->customer->cust_email ?? null);
+            if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                Mail::to($customerEmail)->send(new OrderPlacedMail($order, 'customer'));
+            }
 
             // Email to Admin
-            //Mail::to(env('ADMIN_EMAIL', config('mail.from.address')))->send(new OrderPlacedMail($order, 'admin'));
+            $adminEmail = env('ADMIN_EMAIL', config('mail.from.address'));
+            if (!empty($adminEmail) && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+                Mail::to($adminEmail)->send(new OrderPlacedMail($order, 'admin'));
+            }
 
             // WhatsApp & SMS Notification
             if ($delivery['phone'] ?? null) {

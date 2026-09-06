@@ -140,7 +140,7 @@
                                         <td>{{ number_format($order->order_sub_total_amt, 2) }}</td>
                                         <td>{{ number_format($order->order_charges_total_amt, 2) }}</td>
                                         @php
-                                            {{-- START: imohitmehto | 2026-08-25 | FIX: Status labels now match OrderStatus enum values --}}
+                                            // START: imohitmehto | 2026-08-25 | FIX: Status labels now match OrderStatus enum values
                                             $orderStatusMap = [
                                                 0 => ['Cancelled',  'danger'],
                                                 1 => ['Pending',    'warning'],
@@ -150,7 +150,7 @@
                                         
                                             [$orderLabel, $orderBadge] = $orderStatusMap[$order->order_status]
                                                 ?? ['Unknown', 'secondary'];
-                                            {{-- END: imohitmehto | FIX: Status label mapping --}}
+                                            // END: imohitmehto | FIX: Status label mapping
                                         @endphp
                                         
                                         <td>
@@ -160,7 +160,7 @@
                                         </td>
                                         
                                         @php
-                                            {{-- START: imohitmehto | 2026-08-25 | FIX: Payment status labels now match actual DB values --}}
+                                            // START: imohitmehto | 2026-08-25 | FIX: Payment status labels now match actual DB values
                                             $paymentStatusMap = [
                                                 1 => ['Paid',    'success'],
                                                 2 => ['Pending', 'warning'],
@@ -168,7 +168,7 @@
                                         
                                             [$payLabel, $payBadge] = $paymentStatusMap[$order->order_payment_status]
                                                 ?? ['Unknown', 'secondary'];
-                                            {{-- END: imohitmehto | FIX: Payment status label mapping --}}
+                                            // END: imohitmehto | FIX: Payment status label mapping
                                         @endphp
                                         
                                         <td>

@@ -148,6 +148,7 @@ Route::middleware(['disableBackBtn'])->group(function () {
     // My Orders Routes
     Route::get('/my-orders', [WebsiteController::class, 'myOrders'])->name('website.orders.index');
     Route::get('/my-orders/{id}', [WebsiteController::class, 'myOrderDetails'])->name('website.orders.show');
+    Route::get('/my-orders/{id}/invoice', [WebsiteController::class, 'orderInvoice'])->name('website.orders.invoice');
     Route::post('/my-orders/{id}/cancel', [WebsiteController::class, 'cancelOrder'])->name('website.orders.cancel');
 });
 

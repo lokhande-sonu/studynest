@@ -37,12 +37,29 @@ class AuthController extends Controller
         // Check if the input is email or username
         $loginField = filter_var($request->email, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        // Attempt to authenticate the user using the 'management' guard
-        if (Auth::guard('management')->attempt([$loginField => $request->email, 'password' => $request->password, 'status' => 1])) {
+        // Resolve the matching active management account by email.
+        // If more than one active record shares the same email, the account whose
+        // password matches the submitted credentials is the one that logs in,
+        // so login depends solely on the email + password (no username/role used).
+        // START: imohitmehto | login fix: email-only resolution
+        $management = null;
+        if ($loginField === 'email') {
+            $management = Management::where('email', $request->email)
+                ->where('status', 1)
+                ->get()
+                ->first(fn ($candidate) => Hash::check($request->password, $candidate->password));
+        } else {
+            $management = Management::where('username', $request->email)
+                ->where('status', 1)
+                ->first();
+        }
+        // END: imohitmehto | login fix
+
+        // Authenticate the user using the 'management' guard
+        if ($management && Hash::check($request->password, $management->password)) {
             // Authentication successful
             $request->session()->regenerate();
-
-            $management = Auth::guard('management')->user();
+            Auth::guard('management')->login($management);
             
             // Store user data in session for backward compatibility
             $request->session()->put('uid', $management->m_id); 

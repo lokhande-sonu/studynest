@@ -48,8 +48,8 @@
                                     <div class="sa-page-meta__item">Total ₹ {{ number_format($order->order_total_amt, 2) }}</div>
                                     
                                     @php
-                                        {{-- START: imohitmehto | 2026-08-25 | FIX: Status labels now match OrderStatus enum values --}}
-                                        {{-- 0=Cancelled, 1=Pending, 2=Confirmed, 3=Delivered --}}
+                                        // START: imohitmehto | 2026-08-25 | FIX: Status labels now match OrderStatus enum values
+                                        // 0=Cancelled, 1=Pending, 2=Confirmed, 3=Delivered
                                         // Payment status
                                         $paymentStatusMap = [
                                             1 => ['Paid', 'success'],
@@ -70,7 +70,7 @@
                                     
                                         [$orderLabel, $orderBadge] = $orderStatusMap[$order->order_status]
                                             ?? ['Unknown', 'secondary'];
-                                        {{-- END: imohitmehto | FIX: Status label mapping --}}
+                                        // END: imohitmehto | FIX: Status label mapping
                                     @endphp
                                     
                                     <div class="sa-page-meta__item d-flex align-items-center fs-6">

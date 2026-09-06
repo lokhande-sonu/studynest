@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Customer;
+use App\Models\PreBooking;
 use Carbon\Carbon;
 
 class ManagementController extends Controller
@@ -13,7 +14,7 @@ class ManagementController extends Controller
     public function dashboard()
     {
         /* =======================
-         * BASIC COUNTS
+         * BASIC COUNTS (CUMULATIVE)
          * ======================= */
         $totalOrders = Order::count();
 
@@ -23,6 +24,31 @@ class ManagementController extends Controller
         $totalCustomers = Customer::where('cust_status', 1)->count();
 
         $totalRevenue = Order::where('order_payment_status', 1)->sum('order_paid_amt');
+
+        /* =======================
+         * NEW ORDERS TODAY
+         * ======================= */
+        $newOrdersToday = Order::whereDate('order_created_at', Carbon::today())->count();
+
+        /* =======================
+         * TODAY'S DAILY SUMMARY
+         * ======================= */
+        $todayOrders = Order::whereDate('order_created_at', Carbon::today())->count();
+        $todayPending = Order::whereDate('order_created_at', Carbon::today())->where('order_status', \App\Enums\OrderStatus::PENDING)->count();
+        $todayConfirmed = Order::whereDate('order_created_at', Carbon::today())->where('order_status', \App\Enums\OrderStatus::CONFIRMED)->count();
+        $todayDelivered = Order::whereDate('order_created_at', Carbon::today())->where('order_status', \App\Enums\OrderStatus::DELIVERED)->count();
+        $todaySales = Order::whereDate('order_created_at', Carbon::today())->where('order_payment_status', 1)->sum('order_paid_amt');
+        $todayNewCustomers = Customer::whereDate('cust_created_at', Carbon::today())->count();
+        $todayPrebookings = PreBooking::whereDate('created_at', Carbon::today())->count();
+        $todayPaymentSummary = Order::whereDate('order_payment_date_time', Carbon::today())->where('order_payment_status', 1)->sum('order_paid_amt');
+
+        /* =======================
+         * RECENT ORDERS (for dashboard table)
+         * ======================= */
+        $recentOrders = Order::with('customer')
+            ->orderBy('order_id', 'desc')
+            ->limit(10)
+            ->get();
 
         /* =======================
          * CURRENT MONTH SALES
@@ -86,7 +112,17 @@ class ManagementController extends Controller
             'totalRevenue',
             'currentMonthSales',
             'weeklySales',
-            'monthlyOrders'
+            'monthlyOrders',
+            'recentOrders',
+            'newOrdersToday',
+            'todayOrders',
+            'todayPending',
+            'todayConfirmed',
+            'todayDelivered',
+            'todaySales',
+            'todayNewCustomers',
+            'todayPrebookings',
+            'todayPaymentSummary'
         ));
     }
 }

@@ -25,7 +25,22 @@ class OrderPlacedMail extends Mailable
                 ->view('emails.order-admin');
         }
 
-        return $this->subject('Your Order Confirmation - #' . $this->order->order_id)
+        $mail = $this->subject('Your Order Confirmation - #' . $this->order->order_id)
             ->view('emails.order-customer');
+
+        // START: Invoice PDF attachment (same template as the management Download Invoice button)
+        try {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('management.invoice', ['order' => $this->order]);
+            $mail->attachData(
+                $pdf->output(),
+                'Invoice-Order-' . $this->order->order_id . '.pdf',
+                ['mime' => 'application/pdf']
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Invoice PDF attachment failed for order #' . $this->order->order_id . ': ' . $e->getMessage());
+        }
+        // END: Invoice PDF attachment
+
+        return $mail;
     }
 }

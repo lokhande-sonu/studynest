@@ -140,15 +140,15 @@
                                 <div class="flex-between mb-8">
                                     <span class="text-gray-600">Payment Status:</span>
                                     @php
-                                        {{-- START: imohitmehto | 2026-08-25 | FIX: Payment status labels now match actual DB values --}}
-                                        {{-- 0=Failed, 1=Paid, 2=Pending --}}
+                                        // START: imohitmehto | 2026-08-25 | FIX: Payment status labels now match actual DB values
+                                        // 0=Failed, 1=Paid, 2=Pending
                                         $paymentStatusMap = [
                                             1 => ['Paid', 'success'],
                                             2 => ['Pending', 'warning'],
                                             0 => ['Failed', 'danger'],
                                         ];
                                         [$payLabel, $payBadge] = $paymentStatusMap[$order->order_payment_status] ?? ['Unknown', 'secondary'];
-                                        {{-- END: imohitmehto | FIX: Payment status label mapping --}}
+                                        // END: imohitmehto | FIX: Payment status label mapping
                                     @endphp
                                     <span class="badge bg-{{ $payBadge }} text-white px-10 py-4 rounded-pill text-xs">{{ $payLabel }}</span>
                                 </div>
@@ -167,12 +167,12 @@
                         <h6 class="mb-24 border-bottom border-gray-100 pb-16">Order Summary</h6>
                         
                         @php
-                            {{-- START: imohitmehto | 2026-08-25 | FIX: Subtotal calculated from stored item data (product_rate * qty) --}}
-                            {{-- Previously used $item['price'] which was the GST-inclusive total, not the base subtotal --}}
+                            // START: imohitmehto | 2026-08-25 | FIX: Subtotal calculated from stored item data (product_rate * qty)
+                            // Previously used $item['price'] which was the GST-inclusive total, not the base subtotal
                             $subTotal = collect($order->order_items)->sum(function ($item) {
                                 return $item['product_rate'] * $item['product_qty'];
                             });
-                            {{-- END: imohitmehto | FIX: Customer order subtotal accuracy --}}
+                            // END: imohitmehto | FIX: Customer order subtotal accuracy
                         @endphp
 
                         <div class="flex-between mb-12">
