@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
@@ -42,6 +43,14 @@ class WebsiteAuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
+            DB::table('customer_login_attempts')->insert([
+                'cust_id' => Auth::id(),
+                'email' => $request->email,
+                'ip_address' => $request->ip(),
+                'successful' => 1,
+                'created_at' => now(),
+            ]);
+
             if ($request->ajax()) {
                 session()->flash('success', 'Logged in successfully');
                 return response()->json([
@@ -52,6 +61,14 @@ class WebsiteAuthController extends Controller
             }
             return redirect()->back()->with('success', 'Logged in successfully');
         }
+
+        DB::table('customer_login_attempts')->insert([
+            'cust_id' => null,
+            'email' => $request->email,
+            'ip_address' => $request->ip(),
+            'successful' => 0,
+            'created_at' => now(),
+        ]);
 
         if ($request->ajax()) {
             return response()->json([

@@ -1650,7 +1650,7 @@ class WebsiteController extends Controller
                     'total_amount' => number_format($order->order_total_amt, 2)
                 ]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Order Notification Error: ' . $e->getMessage());
         }
     }

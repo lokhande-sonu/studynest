@@ -39,6 +39,22 @@
                             <span class="text-gray-500">Date</span>
                             <span class="text-gray-900 fw-semibold">{{ \Carbon\Carbon::parse($order->order_date_time)->format('M d, Y h:i A') }}</span>
                         </div>
+                        @php
+                            $orderCharges = is_array($order->order_charges) ? $order->order_charges : json_decode($order->order_charges, true);
+                            $deliveryCharge = 10.00;
+                            if (is_array($orderCharges)) {
+                                foreach ($orderCharges as $charge) {
+                                    if (strtolower($charge['charge_name'] ?? '') === 'delivery charge') {
+                                        $deliveryCharge = (float)($charge['calculated_amount'] ?? $charge['charge_value'] ?? 10);
+                                        break;
+                                    }
+                                }
+                            }
+                        @endphp
+                        <div class="flex-between gap-16 mb-16">
+                            <span class="text-gray-500">Delivery Charge</span>
+                            <span class="text-gray-900 fw-semibold">₹{{ number_format($deliveryCharge, 2) }}</span>
+                        </div>
                         <div class="flex-between gap-16 mb-16">
                             <span class="text-gray-500">Total Amount</span>
                             <span class="text-gray-900 fw-semibold text-xl">₹{{ number_format($order->order_total_amt, 2) }}</span>
