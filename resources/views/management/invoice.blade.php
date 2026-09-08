@@ -142,11 +142,35 @@
         <table class="layout-table">
             <tr>
                 <td>
-                    <div class="company-name">StudyNest</div>
+                    <div class="company-name">{{ config('invoice.company.name') }}</div>
                     <div style="color: #777; font-size: 13px;">Your Learning Partner</div>
+                    @php
+                        $companyInfo = \App\Models\ContactInfo::first();
+                        $companyGstin = config('invoice.company.gstin');
+                        $companyAddress = trim((string) config('invoice.company.address'));
+                        if ($companyAddress === '') {
+                            $companyAddress = $companyInfo ? trim((string) $companyInfo->address) : '';
+                        }
+                    @endphp
+                    @if(!empty($companyGstin))
+                        <div style="margin-top: 8px; font-size: 13px; font-weight: bold; color: #333;">
+                            GSTIN: {{ $companyGstin }}
+                        </div>
+                    @endif
+                    @if(!empty($companyAddress))
+                        <div style="margin-top: 8px; font-size: 13px; color: #555; line-height: 1.6;">
+                            {!! nl2br(e($companyAddress)) !!}
+                            @if($companyInfo && !empty($companyInfo->mobile))
+                                <br>Phone: {{ $companyInfo->mobile }}
+                            @endif
+                            @if($companyInfo && !empty($companyInfo->email))
+                                <br>Email: {{ trim($companyInfo->email) }}
+                            @endif
+                        </div>
+                    @endif
                 </td>
                 <td class="text-right">
-                    <div class="invoice-title">INVOICE</div>
+                    <div class="invoice-title">TAX INVOICE</div>
                     <div class="invoice-meta">
                         <strong>#{{ $order->order_id }}</strong><br>
                         {{ date('F d, Y', strtotime($order->order_date_time)) }}
@@ -293,7 +317,7 @@
                         @endphp
                         
                         <tr>
-                            <td>Subtotal (after GST)</td>
+                            <td>Subtotal (Inclusive GST)</td>
                             <td>₹{{ number_format($subTotal, 2) }}</td>
                         </tr>
                         

@@ -1636,7 +1636,7 @@ class WebsiteController extends Controller
             }
 
             // Email to Admin
-            $adminEmail = env('ADMIN_EMAIL', config('mail.from.address'));
+            $adminEmail = config('mail.admin_email', config('mail.from.address'));
             if (!empty($adminEmail) && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
                 Mail::to($adminEmail)->send(new OrderPlacedMail($order, 'admin'));
             }

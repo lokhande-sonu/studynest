@@ -58,7 +58,7 @@
 
                     <!-- Form Wrapper -->
                     <div class="d-flex justify-content-center mt-4">
-                        <form action="{{ route('website.school-shop') }}" method="GET" class="form-location-wrapper max-w-840 w-100 text-center">
+                        <form action="{{ route('website.shop') }}" method="GET" class="form-location-wrapper max-w-840 w-100 text-center">
 
                             <div class="search-category select-style-one d-flex 
                                     select-border-end-0 search-form 
