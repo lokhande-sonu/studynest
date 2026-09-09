@@ -35,11 +35,16 @@ class AdminProfileController extends Controller
             return redirect()->route('management.login');
         }
 
+        $emailRule = 'required|email|max:255';
+        if ($request->email !== $admin->email) {
+            $emailRule .= '|unique:tbl_managements,email,'.$admin->m_id.',m_id';
+        }
+
         $request->validate([
             'name'   => 'required|string|max:255',
-            'email'  => 'required|email|max:255|unique:tbl_managements,email,'.$admin->m_id.',m_id',
+            'email'  => $emailRule,
             'mobile' => 'required|string|max:15',
-            'profile_photo' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+            'profile_photo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
         try {

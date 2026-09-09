@@ -51,7 +51,6 @@
                             </div>
                             <form action="{{ route('management.profile.update') }}" method="POST" enctype="multipart/form-data">
                                 @csrf
-                                @method('PUT')
                                 <div class="row px-5">
                                     <div class="col-md-6 mb-4">
                                         <label class="form-label">Full Name</label>
