@@ -278,7 +278,7 @@
                                                     $initialStock = (int) $inventory->available_stock;
                                                 }
                                             }
-                                            $maxQty = $initialStock > 0 ? min($initialStock, 5) : 5;
+                                            $maxQty = $initialStock > 0 ? $initialStock : 0;
                                         @endphp
 
                                         <div class="mt-12 mb-12">
@@ -325,9 +325,9 @@
                                             @php
                                                 $eff = ($initialDiscount && $initialDiscount < $initialPrice) ? $initialDiscount : $initialPrice;
                                             @endphp
-                                            <span class="text-heading text-md fw-semibold ">₹{{ number_format($eff, 2) }}</span>
+                                            <span class="text-heading text-md fw-semibold ">₹{{ number_format($eff, 0) }}</span>
                                             <br/>
-                                            <small class="text-gray-500 ms-6">(1 × ₹{{ number_format($eff, 2) }})</small>
+                                            <small class="text-gray-500 ms-6">(1 × ₹{{ number_format($eff, 0) }})</small>
                                         </div>
                                                 </div>
                                             </div>
@@ -390,12 +390,12 @@
             const total = eff * qty;
             let html = '';
             if (!isNaN(ud) && ud > 0 && ud < up) {
-                html = `<span class="text-gray-400 text-md fw-semibold text-decoration-line-through">₹${up.toFixed(2)}</span>
-                        <span class="text-heading text-md fw-semibold ms-6">₹${total.toFixed(2)}</span>
-                        <small class="text-gray-500 ms-6">(${qty} × ₹${eff.toFixed(2)})</small>`;
+                html = `<span class="text-gray-400 text-md fw-semibold text-decoration-line-through">₹${Math.round(up)}</span>
+                        <span class="text-heading text-md fw-semibold ms-6">₹${Math.round(total)}</span>
+                        <small class="text-gray-500 ms-6">(${qty} × ₹${Math.round(eff)})</small>`;
             } else {
-                html = `<span class="text-heading text-md fw-semibold ">₹${total.toFixed(2)}</span>
-                        <small class="text-gray-500 ms-6">(${qty} × ₹${up.toFixed(2)})</small>`;
+                html = `<span class="text-heading text-md fw-semibold ">₹${Math.round(total)}</span>
+                        <small class="text-gray-500 ms-6">(${qty} × ₹${Math.round(up)})</small>`;
             }
             container.innerHTML = html;
         }
@@ -653,12 +653,12 @@
             const total = eff * qty;
             let html = '';
             if (!isNaN(ud) && ud > 0 && ud < up) {
-                html = `<span class="text-gray-400 text-sm fw-semibold text-decoration-line-through">₹${up.toFixed(2)}</span>
-                        <span class="fw-semibold text-main-600 ms-2">₹${total.toFixed(2)}</span>
-                        <small class="text-gray-500 ms-2">(${qty} × ₹${eff.toFixed(2)})</small>`;
+                html = `<span class="text-gray-400 text-sm fw-semibold text-decoration-line-through">₹${Math.round(up)}</span>
+                        <span class="fw-semibold text-main-600 ms-2">₹${Math.round(total)}</span>
+                        <small class="text-gray-500 ms-2">(${qty} × ₹${Math.round(eff)})</small>`;
             } else {
-                html = `<span class="fw-semibold">₹${total.toFixed(2)}</span>
-                        <small class="text-gray-500 ms-2">(${qty} × ₹${up.toFixed(2)})</small>`;
+                html = `<span class="fw-semibold">₹${Math.round(total)}</span>
+                        <small class="text-gray-500 ms-2">(${qty} × ₹${Math.round(up)})</small>`;
             }
             priceEl.innerHTML = html;
         }

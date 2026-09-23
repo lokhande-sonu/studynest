@@ -107,12 +107,12 @@
 
                                 <div class="my-32 flex-align gap-16 flex-wrap">
                                     <div class="flex-align gap-8">
-                                        <h4 class="mb-0 text-main-600" id="main-price">₹{{ number_format($product->discounted_price ?? $product->p_price, 2) }}</h4>
+                                        <h4 class="mb-0 text-main-600" id="main-price">₹{{ number_format($product->discounted_price ?? $product->p_price, 0) }}</h4>
                                     </div>
                                     @if($product->discounted_price && $product->discounted_price < $product->p_price)
                                     <div class="flex-align gap-8" id="regular-price-container">
                                         <span class="text-gray-500 text-sm">Regular Price</span>
-                                        <h5 class="text-gray-400 mb-0 fw-medium text-decoration-line-through" id="main-regular-price">₹{{ number_format($product->p_price, 2) }}</h5>
+                                        <h5 class="text-gray-400 mb-0 fw-medium text-decoration-line-through" id="main-regular-price">₹{{ number_format($product->p_price, 0) }}</h5>
                                     </div>
                                     @else
                                     <div class="flex-align gap-8 d-none" id="regular-price-container">
@@ -192,7 +192,7 @@
                                         $initialStock = $product->variants->count() > 0 
                                             ? ($product->stockInventories->where('prod_variant_id', $product->variants->first()->prod_variant_id)->first()->available_stock ?? 0)
                                             : ($product->stockInventories->first()->available_stock ?? 0);
-                                        $maxQty = min(5, (int)$initialStock);
+                                        $maxQty = max(0, (int)$initialStock);
                                     @endphp
                                     <input type="number"
                                         class="quantity__input flex-grow-1 border-0 text-center w-32 px-16 fw-medium"
@@ -207,7 +207,7 @@
                                 </div>
                                 <small class="text-gray-500 mt-8 d-block" id="stock-availability">
                                     @if($initialStock > 0)
-                                        In Stock: {{ $initialStock }} (Max 5 per order)
+                                        In Stock: {{ $initialStock }}
                                     @else
                                         <span class="text-danger fw-medium">Out of Stock</span>
                                     @endif
@@ -217,7 +217,7 @@
                             <div class="mb-24 pt-16 border-top border-gray-100">
                                 <div class="flex-between flex-wrap gap-8">
                                     <span class="text-gray-600 fw-medium">Subtotal</span>
-                                    <h5 class="mb-0 text-main-600" id="sidebar-price">₹{{ number_format($product->discounted_price ?? $product->p_price, 2) }}</h5>
+                                    <h5 class="mb-0 text-main-600" id="sidebar-price">₹{{ number_format($product->discounted_price ?? $product->p_price, 0) }}</h5>
                                 </div>
                             </div>
 
@@ -390,7 +390,7 @@
                 let totalPrice = (currentUnitPrice + customizationSurcharge) * qty;
                 
                 if(sidebarPrice) {
-                    sidebarPrice.textContent = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    sidebarPrice.textContent = '₹' + Math.round(totalPrice).toLocaleString('en-IN');
                 }
             }
 
@@ -404,13 +404,13 @@
                     let effectivePrice = price;
                     if (!isNaN(discount) && discount > 0 && discount < price) {
                         effectivePrice = discount;
-                        if(mainPrice) mainPrice.textContent = '₹' + (discount + customizationSurcharge).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                        if(mainPrice) mainPrice.textContent = '₹' + Math.round(discount + customizationSurcharge).toLocaleString('en-IN');
                         if(regularPriceContainer && mainRegularPrice) {
-                            mainRegularPrice.textContent = '₹' + price.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                            mainRegularPrice.textContent = '₹' + Math.round(price).toLocaleString('en-IN');
                             regularPriceContainer.classList.remove('d-none');
                         }
                     } else {
-                        if(mainPrice) mainPrice.textContent = '₹' + (price + customizationSurcharge).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                        if(mainPrice) mainPrice.textContent = '₹' + Math.round(price + customizationSurcharge).toLocaleString('en-IN');
                         if(regularPriceContainer) {
                             regularPriceContainer.classList.add('d-none');
                         }
@@ -418,8 +418,8 @@
                     
                     currentUnitPrice = effectivePrice;
 
-                    // Update Max (Cap at 5)
-                    const allowedMax = Math.min(5, stock);
+                    // Update Max to actual available stock
+                    const allowedMax = stock;
                     quantityInput.setAttribute('max', allowedMax);
                     
                     // Enable/Disable quantity buttons based on stock
@@ -429,7 +429,7 @@
                     // Update Stock Label
                     if (stockAvailability) {
                         if (stock > 0) {
-                            stockAvailability.innerHTML = `In Stock: ${stock} (Max 5 per order)`;
+                            stockAvailability.innerHTML = `In Stock: ${stock}`;
                             addToCartBtn.disabled = false;
                             addToCartBtn.innerHTML = '<i class="ph ph-shopping-cart-simple text-xl"></i> Add To Cart';
                             if (parseInt(quantityInput.value) === 0) quantityInput.value = 1;
@@ -479,7 +479,7 @@
                         effective = discount;
                     }
                     
-                    if(mainPrice) mainPrice.textContent = '₹' + (effective + customizationSurcharge).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                    if(mainPrice) mainPrice.textContent = '₹' + Math.round(effective + customizationSurcharge).toLocaleString('en-IN');
                     updatePricing();
                 });
             }
@@ -557,9 +557,7 @@
                     
                     // Strict check - don't go beyond max
                     if(val >= max) {
-                        if (max >= 5) {
-                            window.snToast('warning', 'Maximum 5 units allowed per order.');
-                        }
+                        window.snToast('warning', 'Only ' + max + ' units available in stock.');
                         return;
                     }
                     

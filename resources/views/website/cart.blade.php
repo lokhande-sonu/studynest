@@ -57,7 +57,7 @@
                                         </div>
                                         <div class="col-md-2 col-6">
                                             <span class="text-gray-500 text-sm d-block d-md-none">Quantity</span>
-                                            @php $maxCap = isset($stockInfo[$item->id]) ? min((int)$stockInfo[$item->id], 5) : 5; @endphp
+                                            @php $maxCap = isset($stockInfo[$item->id]) ? max(0, (int)$stockInfo[$item->id]) : 0; @endphp
                                             <div class="d-flex align-items-center gap-8">
                                                 <button type="button" class="btn btn-sm border border-gray-200 w-32 h-32 flex-center rounded-6 text-neutral-600 bg-gray-50 hover-bg-main-600 hover-text-white" onclick="changeCartQty({{ $item->id }}, -1, {{ $maxCap }})">
                                                     <i class="ph ph-minus"></i>
@@ -325,7 +325,7 @@
             if (isNaN(v)) v = 1;
             v += delta;
             if (v < 1) v = 1;
-            const max = parseInt(input.max || String(maxCap || 5), 10);
+            const max = parseInt(input.max || String(maxCap || 0), 10);
             if (max > 0 && v > max) v = max;
             input.value = v;
             updateCartItemQty(id, v);
@@ -335,7 +335,7 @@
             if(!input) return;
             let v = parseInt(input.value || '1', 10);
             if (isNaN(v) || v < 1) v = 1;
-            const max = parseInt(input.max || String(maxCap || 5), 10);
+            const max = parseInt(input.max || String(maxCap || 0), 10);
             if (max > 0 && v > max) v = max;
             input.value = v;
             updateCartItemQty(id, v);

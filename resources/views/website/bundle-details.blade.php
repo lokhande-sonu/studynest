@@ -102,7 +102,7 @@
                         <div class="border-top border-gray-100 pt-24 mb-24">
                             <div class="d-flex align-items-baseline gap-16 mb-16">
                                 <span class="text-gray-600">Bundle Value:</span>
-                                <span class="text-2xl fw-bold text-main-600">₹{{ number_format($totalPrice, 2) }}</span>
+                                <span class="text-2xl fw-bold text-main-600">₹{{ number_format($totalPrice, 0) }}</span>
                             </div>
                             <p class="text-gray-500 text-sm">
                                 <i class="ph ph-info me-4"></i>
@@ -226,7 +226,7 @@
                                                 <button type="button" class="btn btn-sm border border-gray-200 w-32 h-32 flex-center rounded-6 text-neutral-600 bg-gray-50 hover-bg-main-600 hover-text-white" onclick="changeQty({{ $bProduct->p_id }}, -1)">
                                                     <i class="ph ph-minus text-sm"></i>
                                                 </button>
-                                                @php $maxStock = isset($inventory) && $inventory ? min((int) $inventory->available_stock, 5) : 5; @endphp
+                                                @php $maxStock = isset($inventory) && $inventory ? (int) $inventory->available_stock : 0; @endphp
                                                 <input type="number" name="quantities[{{ $bProduct->p_id }}]" min="1" value="1" max="{{ $maxStock }}" class="form-control form-control-sm w-60 text-center px-4" id="qty_{{ $bProduct->p_id }}" onchange="updateTotal()">
                                                 <button type="button" class="btn btn-sm border border-gray-200 w-32 h-32 flex-center rounded-6 text-neutral-600 bg-gray-50 hover-bg-main-600 hover-text-white" onclick="changeQty({{ $bProduct->p_id }}, 1)">
                                                     <i class="ph ph-plus text-sm"></i>
@@ -237,7 +237,7 @@
                                         <!-- Price -->
                                         <div class="text-center">
                                             @if($isInStock)
-                                                <span class="text-main-600 fw-semibold">₹<span id="price_{{ $bProduct->p_id }}" data-unit-price="{{ $effectivePrice }}">{{ number_format($effectivePrice, 2) }}</span></span>
+                                                <span class="text-main-600 fw-semibold">₹<span id="price_{{ $bProduct->p_id }}" data-unit-price="{{ $effectivePrice }}">{{ number_format($effectivePrice, 0) }}</span></span>
                                                 <span class="text-gray-500 text-xs">/unit</span>
                                             @else
                                                 <span class="text-danger text-sm">Out of Stock</span>
@@ -258,7 +258,7 @@
                                     </div>
                                     <div class="d-flex align-items-center gap-24">
                                         <div class="text-gray-900 fw-bold">
-                                            Total: <span class="text-main-600 text-xl">₹<span id="totalPrice">{{ number_format($totalPrice, 2) }}</span></span>
+                                            Total: <span class="text-main-600 text-xl">₹<span id="totalPrice">{{ number_format($totalPrice, 0) }}</span></span>
                                         </div>
                                         <button type="submit" class="btn btn-main rounded-pill px-40 py-14">
                                             Add Selected to Cart <i class="ph ph-shopping-cart ms-8"></i>
@@ -340,7 +340,7 @@
     function updateVariantPrice(select, productId) {
         const newPrice = parseFloat(select.options[select.selectedIndex].dataset.price) || 0;
         const priceEl = document.getElementById('price_' + productId);
-        priceEl.textContent = newPrice.toFixed(2);
+        priceEl.textContent = Math.round(newPrice);
         priceEl.dataset.unitPrice = newPrice;
         updateTotal();
     }
@@ -366,7 +366,7 @@
             }
         });
 
-        document.getElementById('totalPrice').textContent = total.toFixed(2);
+        document.getElementById('totalPrice').textContent = Math.round(total);
         document.getElementById('selectedCount').textContent = selectedCount;
     }
 

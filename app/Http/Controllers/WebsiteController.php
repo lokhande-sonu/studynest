@@ -646,14 +646,14 @@ class WebsiteController extends Controller
             ->first();
 
         $currentQty = $cartItem ? $cartItem->quantity : 0;
-        $cap = min($availableStock, 5);
+        $cap = $availableStock;
         $totalQty = $currentQty + $quantity;
 
         if ($totalQty > $cap) {
             if ($request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'You can purchase a maximum of 5 units for this product.'], 400);
+                return response()->json(['success' => false, 'message' => "You can purchase a maximum of $cap units for this product."], 400);
             }
-            return redirect()->back()->with('error', "You can purchase a maximum of 5 units per product. Available stock: $availableStock. You already have $currentQty in cart.");
+            return redirect()->back()->with('error', "You can purchase a maximum of $cap units per product. Available stock: $availableStock. You already have $currentQty in cart.");
         }
 
         if ($cartItem) {
@@ -664,7 +664,7 @@ class WebsiteController extends Controller
                 'cust_id' => $custId,
                 'product_id' => $id,
                 'variant_id' => $variantId,
-                'quantity' => min($quantity, 5)
+                'quantity' => $quantity
             ]);
         }
 
@@ -716,7 +716,7 @@ class WebsiteController extends Controller
                 }
                 $stock = $stockQuery->first();
                 $maxStock = $stock ? (int) $stock->available_stock : 0;
-                $cap = $maxStock > 0 ? min($maxStock, 5) : 5;
+                $cap = $maxStock;
 
                 if ($request->quantity > $cap) {
                     return response()->json([
