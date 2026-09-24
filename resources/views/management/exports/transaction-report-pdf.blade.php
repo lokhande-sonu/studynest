@@ -36,10 +36,11 @@
             <td>{{ $order->order_payment_status == 1 ? 'Paid' : 'Pending' }}</td>
             <td>
                 {{ match($order->order_status) {
-                    1 => 'Delivered',
-                    2 => 'Payment Pending',
-                    3 => 'Order Placed',
                     0 => 'Cancelled',
+                    1 => 'Pending',
+                    2 => 'Confirmed',
+                    4 => 'Shipped / In Transit',
+                    3 => 'Delivered',
                     default => 'Unknown'
                 } }}
             </td>

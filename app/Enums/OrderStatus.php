@@ -7,6 +7,7 @@ class OrderStatus
     const CANCELLED = 0;
     const PENDING = 1;
     const CONFIRMED = 2;
+    const SHIPPED = 4;
     const DELIVERED = 3;
 
     public static function label($status)
@@ -15,6 +16,7 @@ class OrderStatus
             self::CANCELLED => 'Cancelled',
             self::PENDING => 'Pending',
             self::CONFIRMED => 'Confirmed',
+            self::SHIPPED => 'Shipped / In Transit',
             self::DELIVERED => 'Delivered',
             default => 'Unknown',
         };
@@ -26,6 +28,7 @@ class OrderStatus
             self::CANCELLED => 'danger',
             self::PENDING => 'warning',
             self::CONFIRMED => 'primary',
+            self::SHIPPED => 'info',
             self::DELIVERED => 'success',
             default => 'secondary',
         };

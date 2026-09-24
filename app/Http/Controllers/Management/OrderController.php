@@ -490,6 +490,7 @@ class OrderController extends Controller
                     0 => 'Cancelled',
                     1 => 'Pending',
                     2 => 'Confirmed',
+                    4 => 'Shipped / In Transit',
                     3 => 'Delivered',
                     default => 'Unknown'
                 },

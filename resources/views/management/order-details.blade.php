@@ -65,6 +65,7 @@
                                             0 => ['Cancelled',  'danger'],
                                             1 => ['Pending',    'warning'],
                                             2 => ['Confirmed',  'primary'],
+                                            4 => ['Shipped / In Transit', 'info'],
                                             3 => ['Delivered',  'success'],
                                         ];
                                     
@@ -349,6 +350,7 @@
                                     <select class="form-select" name="order_status">
                                         <option value="1" {{ $order->order_status == '1' ? 'selected' : '' }}>Pending</option>
                                         <option value="2" {{ $order->order_status == '2' ? 'selected' : '' }}>Confirmed</option>
+                                        <option value="4" {{ $order->order_status == '4' ? 'selected' : '' }}>Shipped / In Transit</option>
                                         <option value="3" {{ $order->order_status == '3' ? 'selected' : '' }}>Delivered</option>
                                         <option value="0" {{ $order->order_status == '0' ? 'selected' : '' }}>Cancelled</option>
                                     </select>
