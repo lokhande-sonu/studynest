@@ -16,7 +16,7 @@ class OrderStatus
             self::CANCELLED => 'Cancelled',
             self::PENDING => 'Pending',
             self::CONFIRMED => 'Confirmed',
-            self::SHIPPED => 'Shipped / In Transit',
+            self::SHIPPED => 'Shipped',
             self::DELIVERED => 'Delivered',
             default => 'Unknown',
         };

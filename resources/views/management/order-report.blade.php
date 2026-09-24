@@ -55,7 +55,7 @@
                                                 <option value="">All</option>
                                                 <option value="1" {{ request('order_status')=='1'?'selected':'' }}>Pending</option>
                                                 <option value="2" {{ request('order_status')=='2'?'selected':'' }}>Confirmed</option>
-                                                <option value="4" {{ request('order_status')=='4'?'selected':'' }}>Shipped / In Transit</option>
+                                                <option value="4" {{ request('order_status')=='4'?'selected':'' }}>Shipped</option>
                                                 <option value="3" {{ request('order_status')=='3'?'selected':'' }}>Delivered</option>
                                                 <option value="0" {{ request('order_status')=='0'?'selected':'' }}>Cancelled</option>
                                             </select>
@@ -124,7 +124,7 @@
                                                 0 => ['Cancelled',  'danger'],
                                                 1 => ['Pending',    'warning'],
                                                 2 => ['Confirmed',  'primary'],
-                                                4 => ['Shipped / In Transit', 'info'],
+                                                4 => ['Shipped', 'info'],
                                                 3 => ['Delivered',  'success'],
                                             ];
                                         

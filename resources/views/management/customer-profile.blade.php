@@ -183,7 +183,7 @@
                                                                 0 => ['label' => 'Cancelled',  'badge' => 'danger'],
                                                                 1 => ['label' => 'Pending',    'badge' => 'warning'],
                                                                 2 => ['label' => 'Confirmed',  'badge' => 'primary'],
-                                                                4 => ['label' => 'Shipped / In Transit', 'badge' => 'info'],
+                                                                4 => ['label' => 'Shipped', 'badge' => 'info'],
                                                                 3 => ['label' => 'Delivered',  'badge' => 'success'],
                                                             ];
                                                         

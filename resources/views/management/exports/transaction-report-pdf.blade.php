@@ -39,7 +39,7 @@
                     0 => 'Cancelled',
                     1 => 'Pending',
                     2 => 'Confirmed',
-                    4 => 'Shipped / In Transit',
+                    4 => 'Shipped',
                     3 => 'Delivered',
                     default => 'Unknown'
                 } }}
