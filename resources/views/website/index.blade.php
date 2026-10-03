@@ -58,7 +58,7 @@
 
                     <!-- Form Wrapper -->
                     <div class="d-flex justify-content-center mt-4">
-                        <form action="{{ route('website.shop') }}" method="GET" class="form-location-wrapper max-w-840 w-100 text-center">
+                        <form action="{{ route('website.shop') }}" method="GET" class="home-search-form form-location-wrapper max-w-840 w-100 text-center">
 
                             <div class="search-category select-style-one d-flex 
                                     select-border-end-0 search-form 
@@ -105,6 +105,66 @@
                             <!-- Mobile duplicates removed: desktop selects use d-sm-flex/d-none for responsive visibility -->
 
                         </form>
+
+                        <style>
+                            /* Homepage filter: mobile-only responsive layout (scoped to home-search-form) */
+                            @media (max-width: 767px) {
+                                .home-search-form {
+                                    max-width: 100% !important;
+                                    overflow: hidden;
+                                }
+
+                                .home-search-form .search-form {
+                                    flex-direction: column !important;
+                                    align-items: stretch !important;
+                                    gap: 12px !important;
+                                    width: 100% !important;
+                                }
+
+                                .home-search-form .select2-container {
+                                    width: 100% !important;
+                                    min-width: 0 !important;
+                                    flex: 0 0 auto !important;
+                                }
+
+                                .home-search-form .select2-container .selection,
+                                .home-search-form .select2-container--default .select2-selection--single {
+                                    width: 100% !important;
+                                    height: 48px !important;
+                                }
+
+                                .home-search-form .select2-container--default .select2-selection--single {
+                                    display: flex;
+                                    align-items: center;
+                                    border: 1px solid var(--neutral-40) !important;
+                                    border-radius: 6px !important;
+                                }
+
+                                .home-search-form .select-border-end-0 .select2-selection.select2-selection--single,
+                                .home-search-form .select2-selection.select2-selection--single {
+                                    border-inline-end: 1px solid var(--neutral-40) !important;
+                                }
+
+                                .home-search-form .search-form__wrapper {
+                                    display: block !important;
+                                    width: 100% !important;
+                                    flex: 0 0 auto !important;
+                                }
+
+                                .home-search-form .search-form__wrapper .common-input {
+                                    width: 100% !important;
+                                    height: 48px;
+                                    padding: 0 76px 0 16px !important;
+                                    border: 1px solid var(--neutral-40) !important;
+                                    border-radius: 6px !important;
+                                    background-color: #fff !important;
+                                }
+
+                                .home-search-form .search-form__wrapper button {
+                                    z-index: 2;
+                                }
+                            }
+                        </style>
                     </div>
                     <!-- End Form Wrapper -->
 
@@ -155,40 +215,7 @@
             }
         }
         
-        /* Mobile search form styling - override main.css */
-        .form-location-wrapper {
-            position: relative;
-        }
-        
-        .d-sm-none .search-form__wrapper {
-            display: block !important;
-            width: 100% !important;
-        }
-        
-        .d-sm-none .search-form {
-            width: 100% !important;
-        }
-        
-        .d-sm-none .select2-container {
-            width: 100% !important;
-            margin-bottom: 10px;
-        }
-        .select2-container > .selection {
-            width: 100% !important;
-        }
-        
-        .d-sm-none .select2-container--default .select2-selection--single {
-            width: 100% !important;
-            border-radius: 4px !important;
-        }
-        
-        /* Fix dropdown positioning */
-        .d-sm-none .select2-dropdown {
-            width: 100% !important;
-            left: 0 !important;
-            right: 0 !important;
-        }
-    </style>
+        </style>
 
             <div class="school-grid">
                 @foreach($schools as $school)
