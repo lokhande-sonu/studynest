@@ -1438,9 +1438,17 @@ input[type=number] {
     }
 }
 
-/* Homepage filter: force Select2 dropdown panels to align exactly with their
-   field on small screens, regardless of any global panel offset rules. */
+/* Homepage filter: keep the open Select2 container in normal flow and anchor
+   its panel to the field, so no global offset rule or JS coordinate math can
+   push the dropdown outside the mobile viewport. */
 @media screen and (max-width: 767.98px) {
+    .home-search-form .select2-container--open {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+    }
+
     .home-search-form .select2-container--open .select2-dropdown {
         left: 0 !important;
         right: auto !important;
