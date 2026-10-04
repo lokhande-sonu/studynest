@@ -1438,6 +1438,18 @@ input[type=number] {
     }
 }
 
+/* Homepage filter: force Select2 dropdown panels to align exactly with their
+   field on small screens, regardless of any global panel offset rules. */
+@media screen and (max-width: 767.98px) {
+    .home-search-form .select2-container--open .select2-dropdown {
+        left: 0 !important;
+        right: auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        transform: none !important;
+    }
+}
+
 @media screen and (max-width: 991px) {
 
     .location-box,
