@@ -1438,12 +1438,6 @@ input[type=number] {
     }
 }
 
-@media screen and (max-width: 424px) {
-    .select2-container--open .select2-dropdown {
-        left: -40px;
-    }
-}
-
 @media screen and (max-width: 991px) {
 
     .location-box,
