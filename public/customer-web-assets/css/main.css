@@ -1432,30 +1432,12 @@ input[type=number] {
     font-family: var(--heading-font-two);
 }
 
-@media screen and (max-width: 991px) {
-    .select2-container--open .select2-dropdown {
-        /* left: -74px; */
-    }
-}
-
-/* Homepage filter: keep the open Select2 container in normal flow and anchor
-   its panel to the field, so no global offset rule or JS coordinate math can
-   push the dropdown outside the mobile viewport. */
-@media screen and (max-width: 767.98px) {
-    .home-search-form .select2-container--open {
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-        right: auto !important;
-    }
-
-    .home-search-form .select2-container--open .select2-dropdown {
-        left: 0 !important;
-        right: auto !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        transform: none !important;
-    }
+/* Homepage filter: anchor the open Select2 panels inside the filter row so
+   they are positioned relative to the form, never to the document body.
+   (The dropdowns are attached to .search-form via dropdownParent in
+   resources/views/website/index.blade.php.) */
+.home-search-form .search-form {
+    position: relative;
 }
 
 @media screen and (max-width: 991px) {

@@ -577,12 +577,34 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Select2 on mobile dropdowns with proper dropdown parent
-    $('.d-sm-none .js-example-basic-single').select2({
-        width: '100%',
-        dropdownParent: $('.form-location-wrapper')
+function __homeSearchSelect2() {
+    var $form = $('.home-search-form');
+    if (!$form.length) return;
+    var $row = $form.find('.search-form');
+    // Attach the Select2 dropdowns to the filter row instead of <body>, so the
+    // open panels are positioned relative to the form (immune to any document /
+    // body offset) and can never land outside the viewport on mobile.
+    $form.find('.js-example-basic-single').each(function () {
+        var $sel = $(this);
+        try {
+            if ($sel.data('select2')) {
+                $sel.select2('destroy');
+            }
+        } catch (e) {}
+        try {
+            $sel.select2({
+                dropdownParent: $row
+            });
+        } catch (e) {}
     });
-});
+}
+if (document.readyState === 'complete') {
+    __homeSearchSelect2();
+} else {
+    document.addEventListener('DOMContentLoaded', __homeSearchSelect2);
+}
+// Re-apply after every other handler has run (main.js initializes these
+// selects on DOM ready), so the dropdownParent option is authoritative.
+$(window).on('load', __homeSearchSelect2);
 </script>
 @endpush
