@@ -164,6 +164,46 @@
                                     z-index: 2;
                                 }
                             }
+
+                            /* Homepage filter: desktop/tablet — centered, ~920px wide, four fields in one
+                               row (School | Class | Category | Search). The original
+                               .max-w-840 cap was replaced by 920px. Scoped to
+                               .home-search-form only. */
+                            @media (min-width: 768px) {
+                                .home-search-form {
+                                    max-width: 920px !important;
+                                }
+
+                                .home-search-form .search-form {
+                                    flex-wrap: nowrap !important;
+                                    width: 100% !important;
+                                }
+
+                                /* Equal, sensible field widths; the search input takes the rest. */
+                                .home-search-form .select2-container {
+                                    flex: 1 1 0 !important;
+                                    width: auto !important;
+                                    min-width: 0 !important;
+                                }
+
+                                .home-search-form .select2-container .selection,
+                                .home-search-form .select2-container--default .select2-selection--single {
+                                    width: 100% !important;
+                                }
+
+                                /* main.css hides .search-form__wrapper below 992px; keep the
+                                   search input visible on the homepage so all four fields
+                                   share the desktop row. */
+                                .home-search-form .search-form__wrapper {
+                                    display: block !important;
+                                    flex: 1.6 1 0 !important;
+                                    min-width: 0 !important;
+                                }
+
+                                .home-search-form .search-form__wrapper .common-input {
+                                    width: 100% !important;
+                                }
+                            }
                         </style>
                     </div>
                     <!-- End Form Wrapper -->
@@ -577,34 +617,91 @@
 
 @push('scripts')
 <script>
-function __homeSearchSelect2() {
-    var $form = $('.home-search-form');
-    if (!$form.length) return;
-    var $row = $form.find('.search-form');
-    // Attach the Select2 dropdowns to the filter row instead of <body>, so the
-    // open panels are positioned relative to the form (immune to any document /
-    // body offset) and can never land outside the viewport on mobile.
-    $form.find('.js-example-basic-single').each(function () {
-        var $sel = $(this);
-        try {
-            if ($sel.data('select2')) {
-                $sel.select2('destroy');
-            }
-        } catch (e) {}
-        try {
-            $sel.select2({
-                dropdownParent: $row
-            });
-        } catch (e) {}
-    });
-}
-if (document.readyState === 'complete') {
-    __homeSearchSelect2();
-} else {
-    document.addEventListener('DOMContentLoaded', __homeSearchSelect2);
-}
-// Re-apply after every other handler has run (main.js initializes these
-// selects on DOM ready), so the dropdownParent option is authoritative.
-$(window).on('load', __homeSearchSelect2);
+(function () {
+    // Homepage Select2 panel positioning (mobile only).
+    //
+    // Why this exists: with the defaults the panel is attached directly to
+    // <body>, but Select2's own _positionDropdown flips panels ABOVE the field
+    // whenever there is less room below than the panel height — and on phones
+    // the hero/search section sits far enough down (banner + heading) that the
+    // panel pops up over the heading instead of below the field. It also has no
+    // DOM event to hook, so we override the positioning routine per instance.
+    //
+    // Behaviour (only when the layout viewport is < 768px; >= 768px the panel
+    // is left to Select2's native positioning, except that the global
+    // .select2-dropdown { min-width:200px } stretch is removed so the panel
+    // stays exactly as wide as its field at every desktop width):
+    //   1. always place the panel directly BELOW the opened field
+    //      (left == field left, width == field width);
+    //   2. cap the results list height so the panel stays inside the viewport
+    //      (options remain scrollable); the panel is never clipped because it
+    //      stays attached to <body>, outside the overflow:hidden form;
+    //   3. never allow the panel to spill horizontally off-screen.
+    function patchHomeSelect2() {
+        $('.home-search-form .js-example-basic-single').each(function () {
+            var inst = $(this).data('select2');
+            if (!inst) return;
+            var view = inst.dropdown || inst;
+            if (!view || typeof view._positionDropdown !== 'function' || view.__snPatched) return;
+            view.__snPatched = true;
+            var orig = view._positionDropdown;
+            view._positionDropdown = function () {
+                if (window.innerWidth >= 768) {
+                    this.__snLast = 'native';
+                    var res = orig.apply(this, arguments);
+                    var p = this.$dropdown && this.$dropdown[0];
+                    if (p) p.style.minWidth = '0px';
+                    return res;
+                }
+                this.__snLast = 'custom';
+                var field = this.$container && this.$container[0];
+                var wrap = this.$dropdownContainer && this.$dropdownContainer[0];
+                var panel = this.$dropdown && this.$dropdown[0];
+                if (!field || !wrap || !panel) {
+                    return orig.apply(this, arguments);
+                }
+                var vw = window.innerWidth;
+                var vh = window.innerHeight;
+                var opts = panel.querySelector('.select2-results__options');
+                if (opts) opts.style.maxHeight = '';
+                panel.style.maxHeight = '';
+                panel.style.overflow = '';
+                var fr = field.getBoundingClientRect();
+                var natural = panel.offsetHeight || 200;
+                var spaceBelow = Math.max(0, vh - fr.bottom - 8);
+                if (spaceBelow < natural) {
+                    var fixed = Math.max(0, natural - (opts ? opts.offsetHeight : 200));
+                    var target = Math.min(200, Math.max(0, Math.floor(spaceBelow - fixed)));
+                    if (opts) opts.style.maxHeight = target + 'px';
+                    // Cap the whole panel too, so it never extends past the
+                    // bottom edge of the viewport; the results list scrolls.
+                    panel.style.maxHeight = Math.floor(Math.max(0, spaceBelow)) + 'px';
+                    panel.style.overflow = 'hidden';
+                }
+                var leftDoc = Math.max(0, Math.min(fr.left + window.scrollX, Math.max(0, vw - fr.width)));
+                wrap.style.left = leftDoc + 'px';
+                wrap.style.top = (fr.bottom + window.scrollY) + 'px';
+                wrap.style.width = fr.width + 'px';
+                panel.style.left = '0px';
+                panel.style.width = fr.width + 'px';
+                panel.style.minWidth = '0px';
+                panel.classList.remove('select2-dropdown--above');
+                panel.classList.add('select2-dropdown--below');
+                if (this.$container && this.$container.removeClass) {
+                    this.$container.removeClass('select2-container--above').addClass('select2-container--below');
+                }
+            };
+        });
+    }
+
+    if (document.readyState === 'complete') {
+        patchHomeSelect2();
+    } else {
+        document.addEventListener('DOMContentLoaded', patchHomeSelect2);
+    }
+    // Patch again after every other handler has run (main.js initializes these
+    // selects on DOM ready).
+    $(window).on('load', patchHomeSelect2);
+})();
 </script>
 @endpush
